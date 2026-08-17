@@ -17,6 +17,16 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Record workflow start
+        shell: pwsh
+        run: |
+          "STARTED $(Get-Date -Format o)" | Set-Content BUILD_STAGE_v2.0.2.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BUILD_STAGE_v2.0.2.txt
+          git commit -m "Build stage: v2.0.2 started"
+          git push
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -26,9 +36,25 @@ jobs:
         shell: pwsh
         run: npm install --no-audit --no-fund
 
+      - name: Record dependency stage
+        shell: pwsh
+        run: |
+          "DEPENDENCIES_OK $(Get-Date -Format o)" | Set-Content BUILD_STAGE_v2.0.2.txt
+          git add BUILD_STAGE_v2.0.2.txt
+          git commit -m "Build stage: v2.0.2 dependencies ready"
+          git push
+
       - name: Run ScanCode software QA
         shell: pwsh
         run: node qa/qa.js
+
+      - name: Record QA stage
+        shell: pwsh
+        run: |
+          "QA_OK $(Get-Date -Format o)" | Set-Content BUILD_STAGE_v2.0.2.txt
+          git add BUILD_STAGE_v2.0.2.txt
+          git commit -m "Build stage: v2.0.2 QA passed"
+          git push
 
       - name: Build Windows Setup EXE
         shell: pwsh
@@ -41,6 +67,14 @@ jobs:
           if (-not $setup) { throw 'ScanCode Setup EXE was not generated.' }
           Write-Host "Setup ready: $($setup.FullName)"
           Write-Host "Size: $([math]::Round($setup.Length / 1MB, 2)) MB"
+
+      - name: Record EXE build stage
+        shell: pwsh
+        run: |
+          "EXE_BUILT $(Get-Date -Format o)" | Set-Content BUILD_STAGE_v2.0.2.txt
+          git add BUILD_STAGE_v2.0.2.txt
+          git commit -m "Build stage: v2.0.2 EXE built"
+          git push
 
       - name: Create GitHub Release and upload Setup EXE
         shell: pwsh
@@ -63,8 +97,7 @@ jobs:
         run: |
           $stamp = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssK'
           "ScanCode v2.0.2 Windows Setup build SUCCESS`nAsset: ScanCode-Setup-2.0.2-x64.exe`nBuilt: $stamp`nCommit: $env:GITHUB_SHA" | Set-Content BUILD_SUCCESS_v2.0.2.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BUILD_SUCCESS_v2.0.2.txt
-          git commit -m "Record successful ScanCode v2.0.2 Windows Setup build"
+          "RELEASED $stamp" | Set-Content BUILD_STAGE_v2.0.2.txt
+          git add BUILD_SUCCESS_v2.0.2.txt BUILD_STAGE_v2.0.2.txt
+          git commit -m "Record successful ScanCode v2.0.2 Windows Setup release"
           git push
