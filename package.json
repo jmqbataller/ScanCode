@@ -6,8 +6,8 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis portable",
-    "dist:setup": "electron-builder --win nsis"
+    "dist": "electron-builder --win nsis portable --publish never",
+    "dist:setup": "electron-builder --win nsis --publish never"
   },
   "dependencies": {
     "@zxing/browser": "latest"
