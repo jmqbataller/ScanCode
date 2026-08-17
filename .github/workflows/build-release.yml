@@ -57,3 +57,14 @@ jobs:
               --title 'ScanCode v2.0.2 — Windows Setup' `
               --notes 'Deployment release for warehouse PCs. Download ScanCode-Setup-2.0.2-x64.exe, run it as Administrator, and ScanCode will install system-wide with Desktop/Start Menu shortcuts and Windows uninstall registration. Author: John Mark Bataller.'
           }
+
+      - name: Record verified build success
+        shell: pwsh
+        run: |
+          $stamp = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssK'
+          "ScanCode v2.0.2 Windows Setup build SUCCESS`nAsset: ScanCode-Setup-2.0.2-x64.exe`nBuilt: $stamp`nCommit: $env:GITHUB_SHA" | Set-Content BUILD_SUCCESS_v2.0.2.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BUILD_SUCCESS_v2.0.2.txt
+          git commit -m "Record successful ScanCode v2.0.2 Windows Setup build"
+          git push
