@@ -1,0 +1,4 @@
+ScanCode v2.0.2 Windows Setup build SUCCESS
+Asset: ScanCode-Setup-2.0.2-x64.exe
+Built: 2026-08-17T23:54:02+00:00
+Commit: 8acfa7bb26fb7c98df303ca595bb2ee5df07853f
