@@ -1,0 +1,40 @@
+name: Release ScanCode v2.0.1
+
+on:
+  push:
+    paths:
+      - 'RELEASE_v2.0.1'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create ScanCode ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          zip -r release/ScanCode-v2.0.1.zip . \
+            -x '.git/*' '.github/*' 'release/*' 'RELEASE_v2.0.1'
+
+      - name: Create or update GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v2.0.1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v2.0.1 release/ScanCode-v2.0.1.zip --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create v2.0.1 release/ScanCode-v2.0.1.zip \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title 'ScanCode v2.0.1 — Uninstall Fix' \
+              --notes 'ScanCode v2.0.1 fixes broken/orphaned Windows uninstall entries. Includes automatic installer cleanup, force uninstall support, Camera Rescue v2.0 functionality, QA scripts, diagnostics, and warehouse evidence tools. Documents\ScanCode evidence is preserved during uninstall.'
+          fi
