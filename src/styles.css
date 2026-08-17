@@ -1,0 +1,1610 @@
+:root {
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --panel-2: #fafbfc;
+  --border: #d9dde3;
+  --text: #171a1f;
+  --muted: #68727d;
+  --green: #1ea95a;
+  --amber: #cc8b11;
+  --red: #d62828;
+  --blue: #a61b1b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-width: 980px;
+}
+
+button, input, select { font: inherit; }
+
+.topbar {
+  height: 82px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: #ffffff;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+h1, h2, p { margin: 0; }
+h1 { font-size: 22px; letter-spacing: -0.02em; }
+h2 { font-size: 17px; letter-spacing: -0.01em; }
+p { color: var(--muted); font-size: 13px; margin-top: 5px; line-height: 1.45; }
+
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: .15em;
+  color: #818a94;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.top-actions { display: flex; gap: 8px; }
+
+.badge, .mini-state {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 10px;
+  letter-spacing: .08em;
+  font-weight: 800;
+}
+
+.badge.warning, .mini-state.warning { color: #f3c76d; border-color: #604d2d; background: #2a2317; }
+.badge.good, .mini-state.good { color: #80e5a5; border-color: #27563a; background: #14271c; }
+.badge.bad, .mini-state.bad { color: #ff8c8c; border-color: #663232; background: #2b1717; }
+.badge.neutral, .mini-state.neutral { color: #aeb7c0; }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 18px;
+  padding: 18px 18px 0;
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.panel-head, .section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-head {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.camera-actions { display: flex; gap: 8px; }
+select, input {
+  background: #ffffff;
+  color: var(--text);
+  border: 1px solid #343b44;
+  border-radius: 7px;
+  padding: 9px 10px;
+  outline: none;
+}
+select:focus, input:focus { border-color: #65707c; }
+
+.btn {
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 9px 12px;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 650;
+  background: #272d34;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn.primary { background: #e9edf2; color: #ffffff; }
+.btn.secondary { border-color: #343b44; background: #ffffff; }
+.btn.danger { background: #331d1d; border-color: #663232; color: #ff9b9b; }
+.btn.full { width: 100%; margin-top: 9px; }
+
+.video-stage {
+  position: relative;
+  background: #111;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+
+#video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+#recordCanvas { display: none; }
+
+.camera-message {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #c2cad2;
+  background: rgba(5, 6, 7, .62);
+  font-weight: 650;
+  pointer-events: none;
+}
+
+.camera-message.hidden { display: none; }
+
+.scan-frame {
+  position: absolute;
+  width: 48%;
+  height: 30%;
+  left: 26%;
+  top: 35%;
+  pointer-events: none;
+}
+
+.corner {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-color: rgba(255,255,255,.85);
+}
+.corner.tl { left:0; top:0; border-left:2px solid; border-top:2px solid; }
+.corner.tr { right:0; top:0; border-right:2px solid; border-top:2px solid; }
+.corner.bl { left:0; bottom:0; border-left:2px solid; border-bottom:2px solid; }
+.corner.br { right:0; bottom:0; border-right:2px solid; border-bottom:2px solid; }
+
+.scan-strip {
+  min-height: 78px;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.scan-strip-left { min-width: 0; }
+.scan-strip .label {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .12em;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+#currentCode {
+  display: block;
+  font-size: 22px;
+  max-width: 620px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timer-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+
+.rec-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #555d66;
+}
+.rec-dot.live {
+  background: var(--red);
+  box-shadow: 0 0 0 5px rgba(239,91,91,.12);
+}
+
+.manual-test { padding: 14px 18px 18px; }
+.manual-test label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+.manual-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.manual-row input { width: 100%; }
+.manual-test small { color: #737d87; display: block; margin-top: 7px; }
+
+.side-panel { display: flex; flex-direction: column; gap: 18px; }
+.parcel-card, .settings-card { padding: 16px; }
+
+.details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 14px 0;
+}
+
+.details-grid > div {
+  background: #ffffff;
+  padding: 11px;
+  min-height: 60px;
+}
+.details-grid .wide { grid-column: 1 / -1; }
+dt { color: #7f8994; font-size: 10px; text-transform: uppercase; letter-spacing: .09em; }
+dd { margin: 5px 0 0; font-size: 13px; font-weight: 650; word-break: break-word; }
+
+.notice {
+  border-left: 3px solid #5a6570;
+  background: #fafbfc;
+  padding: 10px 11px;
+  color: #9da6af;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.settings-card label {
+  display: block;
+  margin-top: 12px;
+  color: #a8b1ba;
+  font-size: 11px;
+}
+.settings-card label input,
+.settings-card label select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.folder-path {
+  margin-top: 8px;
+  font-size: 10px;
+  color: #78828c;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.history-panel { margin: 18px; }
+.count { color: var(--muted); font-size: 12px; }
+.table-wrap { max-height: 270px; overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { padding: 11px 14px; border-bottom: 1px solid #242a30; text-align: left; }
+th {
+  color: #818b95;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  background: #ffffff;
+  position: sticky;
+  top: 0;
+}
+td { color: #c8cfd6; }
+.empty-row td { text-align: center; color: #6f7983; padding: 24px; }
+.file-button {
+  border: 0;
+  background: transparent;
+  color: #8db9ff;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 12px);
+  background: #eef2f5;
+  color: #131619;
+  border-radius: 7px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0;
+  pointer-events: none;
+  transition: .18s ease;
+  z-index: 50;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 1180px) {
+  .layout { grid-template-columns: minmax(0, 1fr) 300px; }
+  #currentCode { max-width: 470px; }
+}
+
+.storage-block {
+  margin-top: 12px;
+  border: 1px solid #2d343c;
+  border-radius: 7px;
+  padding: 10px;
+  background: #fafbfc;
+}
+.storage-label {
+  display: block;
+  color: #9ca6af;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 750;
+}
+.storage-block .folder-path { margin-top: 5px; }
+.server-divider { height: 1px; background: #2a3037; margin: 16px 0; }
+.section-title-row.compact { margin-bottom: 4px; }
+.switch-row {
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  color: #c4cbd2 !important;
+}
+.switch-row input { width: auto !important; margin: 0 !important; }
+.settings-help {
+  display: block;
+  margin-top: 6px;
+  color: #737d87;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.server-action-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 9px;
+}
+.sync-status-text {
+  margin-top: 9px;
+  border-radius: 6px;
+  padding: 8px 9px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #98a2ac;
+  background: #ffffff;
+  border: 1px solid #292f36;
+}
+
+
+#phoneFrame { width:100%; height:100%; object-fit:cover; display:none; }
+#scanCanvas { display:none; }
+.phone-bridge { padding:12px 18px; border-top:1px solid var(--border); border-bottom:1px solid var(--border); background:#121519; display:grid; grid-template-columns:1fr auto; gap:10px 14px; align-items:center; }
+.phone-bridge.hidden { display:none; }
+.phone-bridge p { margin-top:3px; }
+.phone-urls { grid-column:1 / -1; font-size:11px; color:#9fc0ee; word-break:break-all; line-height:1.6; }
+.today-folder { margin-top:5px; font-size:10px; color:#9ca6af; }
+.sound-row { margin-top:12px !important; }
+.camera-actions { flex-wrap:wrap; justify-content:flex-end; }
+
+.network-camera-row { grid-column:1 / -1; display:grid; grid-template-columns:1fr auto; gap:8px; }
+.network-camera-row input { width:100%; }
+
+
+/* ScanCode v0.5 — camera distance / focus controls */
+.camera-tuning {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(250px, .9fr);
+  gap: 16px;
+  align-items: center;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: #fafbfc;
+}
+
+.camera-tuning-copy strong {
+  font-size: 12px;
+}
+
+.camera-tuning-copy p {
+  font-size: 11px;
+  max-width: 520px;
+}
+
+.distance-segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid #343b44;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.distance-btn {
+  min-width: 70px;
+  border: 0;
+  border-radius: 5px;
+  padding: 8px 10px;
+  background: transparent;
+  color: #8d97a1;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.distance-btn:hover {
+  color: #dce2e8;
+  background: #1a1e23;
+}
+
+.distance-btn.active {
+  color: #ffffff;
+  background: #e8edf2;
+}
+
+.camera-fine-row {
+  min-width: 0;
+}
+
+.zoom-control {
+  display: block;
+  font-size: 10px;
+  color: #98a2ac;
+}
+
+.zoom-control > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.zoom-control strong {
+  color: #e6ebef;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoom-control input[type="range"] {
+  width: 100%;
+  padding: 0;
+  accent-color: #dfe5ea;
+}
+
+.camera-focus-status {
+  margin-top: 5px;
+  color: #737d87;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.video-stage video,
+.video-stage #phoneFrame {
+  transform-origin: center center;
+  transition: transform .16s ease;
+}
+
+@media (max-width: 1250px) {
+  .camera-tuning {
+    grid-template-columns: 1fr auto;
+  }
+  .camera-fine-row {
+    grid-column: 1 / -1;
+  }
+}
+
+
+/* ScanCode v0.7 — one autofocus camera, two software views */
+.one-camera-tuning {
+  grid-template-columns: minmax(260px, .9fr) minmax(420px, 1.5fr);
+  align-items: center;
+}
+
+.dual-software-view {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.dual-software-view .zoom-control {
+  display: block;
+  padding: 10px 12px;
+  border: 1px solid #2d343c;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.dual-software-view .zoom-control small {
+  display: block;
+  margin-top: 6px;
+  color: #707a84;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.one-camera-tuning .camera-focus-status {
+  grid-column: 1 / -1;
+  margin-top: -5px;
+}
+
+@media (max-width: 1220px) {
+  .one-camera-tuning {
+    grid-template-columns: 1fr;
+  }
+  .dual-software-view {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+
+/* ScanCode v0.9 operations */
+#videoStage.recording-active {
+  box-shadow: inset 0 0 0 3px #ef5b5b;
+}
+.recording-overlay {
+  display:none;
+  position:absolute;
+  right:14px;
+  top:14px;
+  z-index:8;
+  background:rgba(120, 20, 20, .90);
+  border:1px solid rgba(255,255,255,.22);
+  border-radius:6px;
+  padding:7px 10px;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.09em;
+  color:#fff;
+}
+#videoStage.recording-active .recording-overlay { display:block; }
+
+.exception-box {
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px solid var(--border);
+}
+.exception-actions {
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:7px;
+  margin-top:7px;
+}
+.exception-actions select { width:100%; }
+.exception-status { color:#8e98a2; font-size:10px; margin-top:7px; }
+.exception-status.active { color:#ff9c9c; font-weight:700; }
+
+.server-search-panel { margin:18px; }
+.search-row { display:flex; gap:8px; }
+.search-row input { min-width:260px; }
+.server-search-body {
+  display:grid;
+  grid-template-columns:minmax(340px,.8fr) minmax(480px,1.2fr);
+  gap:1px;
+  background:var(--border);
+}
+.search-results {
+  min-height:280px;
+  max-height:420px;
+  overflow:auto;
+  background:#14171a;
+  padding:12px;
+  color:#9ca6af;
+  font-size:12px;
+}
+.search-result-item {
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+  align-items:center;
+  padding:10px;
+  border-bottom:1px solid #282e35;
+}
+.search-result-item strong { color:#e4e9ee; display:block; }
+.search-result-item small { color:#737d87; }
+.search-result-actions { display:flex; gap:6px; }
+.preview-stack {
+  background:#090b0d;
+  min-height:280px;
+  padding:12px;
+}
+#serverVideoPlayer,
+#serverWaybillPreview {
+  width:100%;
+  max-height:390px;
+  object-fit:contain;
+  background:#000;
+  border-radius:7px;
+  display:none;
+}
+#serverWaybillPreview { margin-top:10px; }
+
+.quality-good { color:#8fe6ad; }
+.quality-warn { color:#f1c66f; }
+.quality-bad { color:#ff9292; }
+
+
+/* ScanCode v1.0 — white/red UI and compact camera mode */
+body {
+  background: linear-gradient(180deg, #fafbfc 0%, #f2f4f7 100%);
+  color: var(--text);
+}
+.topbar {
+  border-bottom: 1px solid #e2e6eb;
+  box-shadow: 0 2px 10px rgba(14, 20, 28, 0.04);
+}
+.panel {
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+.badge.warning, .mini-state.warning { color: #b45309; border-color: #f3d7a5; background: #fff7ed; }
+.badge.good, .mini-state.good { color: #0f8a47; border-color: #b7e2c8; background: #edfdf3; }
+.badge.bad, .mini-state.bad { color: #c62828; border-color: #f1b3b3; background: #fff1f1; }
+.badge.neutral, .mini-state.neutral { color: #6b7280; background: #f8fafc; border-color: #d8dee6; }
+
+.btn.primary {
+  background: #d62828;
+  color: #ffffff;
+}
+.btn.primary:hover { filter: brightness(0.97); }
+.btn.secondary {
+  background: #ffffff;
+  border-color: #d5dce4;
+  color: #18202a;
+}
+.btn.danger {
+  background: #8f1d1d;
+  border-color: #8f1d1d;
+  color: #ffffff;
+}
+select, input {
+  background: #ffffff;
+  color: #161c24;
+  border: 1px solid #d4dbe3;
+}
+.notice {
+  border-left: 3px solid #d62828;
+  background: #fff5f5;
+  color: #7b4343;
+}
+.video-stage {
+  background: #0f1113;
+}
+.camera-transport-bar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  background: #ffffff;
+}
+.transport-group {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.transport-status {
+  font-size: 12px;
+  font-weight: 700;
+  color: #646e79;
+}
+.compact-toggle {
+  min-width: 110px;
+}
+body.compact-mode .side-panel,
+body.compact-mode .history-panel,
+body.compact-mode .server-search-panel,
+body.compact-mode .camera-tuning,
+body.compact-mode .manual-test,
+body.compact-mode .scan-strip,
+body.compact-mode .panel-head p,
+body.compact-mode .notice,
+body.compact-mode .exception-box {
+  display: none !important;
+}
+body.compact-mode .layout {
+  grid-template-columns: 1fr;
+  padding: 12px;
+}
+body.compact-mode .camera-panel {
+  min-height: calc(100vh - 120px);
+}
+body.compact-mode .camera-panel .panel-head {
+  padding-bottom: 10px;
+}
+body.compact-mode .video-stage {
+  aspect-ratio: auto;
+  height: calc(100vh - 230px);
+  min-height: 520px;
+}
+body.compact-mode .camera-transport-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 12;
+  background: rgba(255,255,255,.98);
+  border-top: 1px solid var(--border);
+}
+body.compact-mode .topbar {
+  height: 72px;
+}
+body.compact-mode .compact-toggle {
+  background: #d62828;
+  color: #fff;
+  border-color: #d62828;
+}
+#videoStage.recording-active {
+  box-shadow: inset 0 0 0 4px #d62828;
+}
+.recording-overlay {
+  background: rgba(214, 40, 40, .92);
+}
+.search-results, .preview-stack, .camera-source-card, .details-grid > div {
+  background: #ffffff;
+}
+th {
+  background: #f8fafc;
+}
+.file-button {
+  color: #b91c1c;
+}
+.exception-status.active {
+  color: #c62828;
+}
+.server-divider {
+  margin: 14px 0 8px;
+  border-top: 1px solid var(--border);
+}
+.switch-row {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top: 10px;
+  color: #5f6873;
+  font-size: 12px;
+}
+.section-title-row.compact h2 {
+  font-size: 15px;
+}
+@media (max-width: 900px) {
+  .camera-transport-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .transport-group {
+    width: 100%;
+  }
+  .transport-group .btn {
+    flex: 1;
+  }
+  body.compact-mode .video-stage {
+    height: calc(100vh - 270px);
+    min-height: 420px;
+  }
+}
+
+
+/* ScanCode v1.2 — true mini compact mode */
+body.compact-mode .topbar {
+  padding: 8px 12px;
+  min-height: 58px;
+}
+body.compact-mode .topbar .eyebrow,
+body.compact-mode .topbar h1,
+body.compact-mode #modeBadge,
+body.compact-mode #cameraBadge,
+body.compact-mode #qualityBadge,
+body.compact-mode #syncBadge,
+body.compact-mode #recordBadge,
+body.compact-mode .camera-actions,
+body.compact-mode #phoneBridgePanel,
+body.compact-mode .panel-head,
+body.compact-mode .sync-status,
+body.compact-mode .server-config,
+body.compact-mode .camera-tuning,
+body.compact-mode .scan-strip,
+body.compact-mode .details-card,
+body.compact-mode .compact-hidden {
+  display:none !important;
+}
+body.compact-mode .top-actions {
+  width:100%;
+  justify-content:flex-end;
+}
+body.compact-mode .camera-panel {
+  border-radius: 12px;
+  overflow:hidden;
+}
+body.compact-mode .video-stage {
+  height: calc(100vh - 140px);
+  min-height: 300px;
+  border-bottom: 0;
+}
+body.compact-mode .camera-transport-bar {
+  padding: 10px 12px;
+  position: static;
+}
+body.compact-mode .transport-group {
+  width:100%;
+}
+body.compact-mode .transport-group .btn {
+  flex:1;
+  min-height:44px;
+}
+body.compact-mode .transport-status {
+  min-width:110px;
+  text-align:right;
+}
+body.compact-mode .layout {
+  padding: 8px;
+}
+
+
+/* ScanCode v1.3 — red/black theme */
+:root {
+  --bg: #0b0b0d;
+  --panel: #141416;
+  --panel-2: #19191d;
+  --border: #2b2b31;
+  --text: #f2f2f3;
+  --muted: #a5a5ad;
+  --green: #21b663;
+  --amber: #d99a1d;
+  --red: #d62828;
+  --blue: #c91f1f;
+}
+
+body {
+  background: linear-gradient(180deg, #080809 0%, #101013 100%);
+  color: var(--text);
+}
+.topbar {
+  background: #111114;
+  border-bottom: 1px solid #2d2d33;
+  box-shadow: 0 2px 18px rgba(0,0,0,.28);
+}
+.topbar h1,
+.panel-head h2,
+.section-title-row h2,
+.search-result-item strong,
+.zoom-control strong,
+.camera-role,
+.transport-status,
+th,
+label,
+strong,
+input,
+select,
+button {
+  color: #f3f3f4;
+}
+.eyebrow,
+.panel-head p,
+.notice,
+.sync-status-text,
+.search-result-item small,
+.camera-focus-status,
+.zoom-control,
+.phone-urls,
+.camera-tuning-copy p,
+.camera-source-card small,
+.exception-status,
+.transport-status {
+  color: #b0b0b8;
+}
+.panel,
+.camera-source-card,
+.search-results,
+.preview-stack,
+.search-results,
+.details-grid > div,
+.camera-transport-bar,
+.dual-software-view .zoom-control,
+.section-title-row.compact,
+.exception-box,
+.phone-bridge,
+.manual-test,
+.notice,
+.sync-status,
+.server-config {
+  background: #141416;
+}
+.panel,
+.camera-source-card,
+.dual-software-view .zoom-control,
+.search-results,
+.preview-stack,
+.details-grid > div,
+.phone-bridge,
+.manual-test,
+.notice,
+.sync-status,
+.server-config,
+.exception-box,
+.camera-transport-bar,
+.topbar,
+th,
+td,
+.history-table,
+.history-table th,
+.history-table td,
+.search-result-item {
+  border-color: #2b2b31 !important;
+}
+.notice {
+  background: #1a1011;
+  color: #d8b2b2;
+  border-left: 3px solid #d62828;
+}
+.btn.primary {
+  background: linear-gradient(180deg, #d62828 0%, #ae1d1d 100%);
+  border-color: #d62828;
+  color: #ffffff;
+}
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.secondary {
+  background: #1c1c21;
+  border-color: #34343c;
+  color: #f0f0f2;
+}
+.btn.secondary:hover {
+  background: #24242a;
+}
+.btn.danger {
+  background: #7c1414;
+  border-color: #a11a1a;
+  color: #fff;
+}
+select, input, textarea {
+  background: #0f1013;
+  color: #f3f3f4;
+  border: 1px solid #31323a;
+}
+select::placeholder, input::placeholder, textarea::placeholder {
+  color: #8b8b94;
+}
+.video-stage,
+.dual-video-stage,
+.far-stage,
+.near-stage {
+  background: #000000;
+}
+.badge.neutral, .mini-state.neutral {
+  color: #c8c8cf;
+  background: #19191e;
+  border-color: #33333a;
+}
+.badge.warning, .mini-state.warning {
+  color: #f3c164;
+  border-color: #5e4720;
+  background: #241b0e;
+}
+.badge.good, .mini-state.good {
+  color: #76dfa0;
+  border-color: #214c31;
+  background: #102116;
+}
+.badge.bad, .mini-state.bad {
+  color: #ff9e9e;
+  border-color: #6c2626;
+  background: #261212;
+}
+.recording-overlay {
+  background: rgba(214, 40, 40, .94);
+  border: 1px solid rgba(255,255,255,.15);
+}
+#videoStage.recording-active {
+  box-shadow: inset 0 0 0 4px #d62828;
+}
+.file-button, a {
+  color: #ff6a6a;
+}
+body.compact-mode .topbar,
+body.compact-mode .camera-panel,
+body.compact-mode .camera-transport-bar {
+  background: #121216;
+}
+body.compact-mode .compact-toggle {
+  background: linear-gradient(180deg, #d62828 0%, #ad1b1b 100%);
+  color: #fff;
+  border-color: #d62828;
+}
+
+
+/* ScanCode v1.4 — fully resizable and responsive */
+body {
+  min-width: 0 !important;
+  overflow-x: hidden;
+}
+
+.topbar {
+  height: auto;
+  min-height: 82px;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.topbar > div:first-child {
+  min-width: 180px;
+}
+.top-actions {
+  flex: 1 1 640px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.layout {
+  align-items: start;
+}
+.camera-panel,
+.side-panel,
+.history-panel,
+.server-search-panel {
+  min-width: 0;
+}
+.panel-head,
+.section-title-row {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.camera-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+.camera-actions select,
+.camera-actions button {
+  max-width: 100%;
+}
+
+.phone-bridge,
+.network-camera-row,
+.server-config,
+.manual-row,
+.server-action-row,
+.exception-actions,
+.search-row,
+.camera-transport-bar,
+.search-result-item,
+.phone-bridge,
+.camera-tuning,
+.one-camera-tuning,
+.dual-software-view,
+.details-grid {
+  min-width: 0;
+}
+
+.search-row input,
+.server-search-body,
+.camera-source-card,
+.preview-stack,
+.search-results {
+  min-width: 0;
+}
+
+@media (max-width: 1240px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+
+@media (max-width: 1080px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .side-panel,
+  .history-panel,
+  .server-search-panel {
+    width: 100%;
+  }
+  .top-actions {
+    justify-content: flex-start;
+    flex-basis: 100%;
+  }
+  .camera-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .camera-actions select {
+    flex: 1 1 260px;
+  }
+}
+
+@media (max-width: 860px) {
+  .topbar {
+    padding: 12px 14px;
+  }
+  .layout {
+    padding: 12px 12px 0;
+    gap: 12px;
+  }
+  .panel-head {
+    padding: 14px 14px;
+  }
+  .camera-actions,
+  .top-actions,
+  .transport-group,
+  .search-row,
+  .server-action-row,
+  .network-camera-row,
+  .manual-row,
+  .exception-actions,
+  .dual-software-view,
+  .details-grid,
+  .server-search-body,
+  .one-camera-tuning {
+    display: grid !important;
+    grid-template-columns: 1fr;
+  }
+  .camera-transport-bar {
+    align-items: stretch;
+  }
+  .transport-status {
+    text-align: left;
+  }
+  .search-row input {
+    min-width: 0;
+  }
+  .btn.full {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  h1 { font-size: 18px; }
+  h2 { font-size: 15px; }
+  p { font-size: 12px; }
+  .badge, .mini-state {
+    font-size: 9px;
+    padding: 6px 8px;
+  }
+  .layout {
+    padding: 10px 10px 0;
+  }
+  .panel {
+    border-radius: 8px;
+  }
+  .video-stage {
+    aspect-ratio: auto;
+    min-height: 260px;
+  }
+  .camera-transport-bar {
+    padding: 10px;
+  }
+  .transport-group {
+    gap: 6px;
+  }
+  .transport-group .btn {
+    width: 100%;
+  }
+}
+
+body.compact-mode .topbar {
+  min-height: 58px;
+}
+@media (max-width: 760px) {
+  body.compact-mode .video-stage {
+    height: calc(100vh - 160px);
+    min-height: 240px;
+  }
+}
+
+
+/* ScanCode v1.5 — auto mini layout on very small resize */
+@media (max-width: 760px), (max-height: 620px) {
+  .topbar {
+    display: none !important;
+  }
+
+  .layout {
+    grid-template-columns: 1fr !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  .side-panel,
+  .history-panel,
+  .server-search-panel,
+  .panel-head,
+  .phone-bridge,
+  .camera-tuning,
+  .scan-strip,
+  .sync-status,
+  .server-config,
+  .manual-test,
+  .notice,
+  .details-card,
+  .exception-box,
+  .section-title-row,
+  .storage-block,
+  .compact-hidden {
+    display: none !important;
+  }
+
+  .camera-panel {
+    border-radius: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-top: 0 !important;
+    min-height: 100vh;
+  }
+
+  .video-stage {
+    aspect-ratio: auto !important;
+    width: 100% !important;
+    height: calc(100vh - 78px) !important;
+    min-height: 180px !important;
+    border-bottom: 0 !important;
+  }
+
+  .camera-transport-bar {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px !important;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    background: rgba(18,18,22,.98) !important;
+    border-top: 1px solid var(--border);
+  }
+
+  .transport-group {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    flex: 1 1 auto;
+  }
+
+  .transport-group .btn {
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 8px;
+    white-space: nowrap;
+  }
+
+  .transport-status {
+    min-width: 92px;
+    font-size: 11px;
+    text-align: right !important;
+    margin-left: 4px;
+  }
+}
+
+@media (max-width: 560px) {
+  .camera-transport-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .transport-status {
+    text-align: left !important;
+    min-width: 0;
+  }
+}
+
+
+/* ScanCode v1.6 — FINAL STRICT BLACK + RED THEME */
+:root {
+  --bg: #070708;
+  --panel: #0e0e11;
+  --panel-2: #131317;
+  --border: #2a2022;
+  --text: #d7d7dc;
+  --muted: #8b8b94;
+  --red: #d21f2b;
+  --red-dark: #85141b;
+  --red-soft: #ff5a64;
+  --green: #d21f2b;
+  --amber: #d21f2b;
+  --blue: #d21f2b;
+}
+
+html,
+body,
+.layout,
+.side-panel {
+  background: #070708 !important;
+  color: #d7d7dc !important;
+}
+
+.topbar,
+.panel,
+.panel-head,
+.parcel-card,
+.settings-card,
+.history-panel,
+.server-search-panel,
+.camera-tuning,
+.one-camera-tuning,
+.camera-tuning-copy,
+.dual-software-view,
+.dual-software-view .zoom-control,
+.camera-transport-bar,
+.scan-strip,
+.manual-test,
+.phone-bridge,
+.storage-block,
+.sync-status-text,
+.server-config,
+.notice,
+.exception-box,
+.search-results,
+.preview-stack,
+.details-grid,
+.details-grid > div,
+.server-search-body,
+.search-result-item,
+table,
+thead,
+tbody,
+th,
+td {
+  background: #0e0e11 !important;
+  color: #d7d7dc !important;
+  border-color: #2a2022 !important;
+}
+
+.camera-panel {
+  background: #09090b !important;
+}
+
+.video-stage,
+#video,
+#phoneFrame,
+#serverVideoPlayer,
+#serverWaybillPreview {
+  background: #000000 !important;
+}
+
+h1, h2, h3,
+strong,
+label,
+dd,
+.transport-status,
+#currentCode {
+  color: #dedee2 !important;
+}
+
+p,
+dt,
+small,
+.eyebrow,
+.folder-path,
+.settings-help,
+.camera-focus-status,
+.phone-urls,
+.exception-status,
+.storage-label,
+.count {
+  color: #888891 !important;
+}
+
+input,
+select,
+textarea {
+  background: #09090c !important;
+  color: #d9d9dd !important;
+  border-color: #35252a !important;
+  box-shadow: none !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #d21f2b !important;
+  outline: 1px solid #d21f2b !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #66666e !important;
+}
+
+.btn {
+  box-shadow: none !important;
+}
+
+.btn.primary,
+.btn.danger,
+body.compact-mode .compact-toggle {
+  background: #c91f2b !important;
+  border-color: #e02b37 !important;
+  color: #e8e8eb !important;
+}
+
+.btn.primary:hover,
+.btn.danger:hover,
+body.compact-mode .compact-toggle:hover {
+  background: #e02b37 !important;
+}
+
+.btn.secondary,
+.compact-toggle {
+  background: #121216 !important;
+  border-color: #5a2026 !important;
+  color: #d7d7dc !important;
+}
+
+.btn.secondary:hover,
+.compact-toggle:hover {
+  background: #1c1013 !important;
+  border-color: #d21f2b !important;
+}
+
+.badge,
+.mini-state {
+  background: #0c0c0f !important;
+  color: #a7a7ae !important;
+  border-color: #342329 !important;
+}
+
+.badge.good,
+.badge.warning,
+.badge.bad,
+.mini-state.good,
+.mini-state.warning,
+.mini-state.bad {
+  background: #1a0a0d !important;
+  color: #ff626c !important;
+  border-color: #702029 !important;
+}
+
+.notice {
+  background: #160a0c !important;
+  color: #b99094 !important;
+  border-left-color: #d21f2b !important;
+}
+
+.recording-overlay {
+  background: rgba(201, 31, 43, .94) !important;
+  color: #e8e8eb !important;
+  border-color: #e02b37 !important;
+}
+
+#videoStage.recording-active {
+  box-shadow: inset 0 0 0 4px #d21f2b !important;
+}
+
+.rec-dot.live {
+  background: #d21f2b !important;
+  box-shadow: 0 0 0 5px rgba(210,31,43,.18) !important;
+}
+
+.file-button,
+a,
+.exception-status.active {
+  color: #ff626c !important;
+}
+
+.toast {
+  background: #151519 !important;
+  color: #d9d9dd !important;
+  border: 1px solid #5a2026 !important;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #08080a;
+}
+::-webkit-scrollbar-thumb {
+  background: #4d171d;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8d1b25;
+}
+
+
+/* ScanCode v1.7 QA-stable compact mode */
+body.compact-mode .topbar,
+body.compact-mode .side-panel,
+body.compact-mode .history-panel,
+body.compact-mode .server-search-panel,
+body.compact-mode .panel-head,
+body.compact-mode #phoneBridgePanel,
+body.compact-mode .camera-tuning,
+body.compact-mode .scan-strip,
+body.compact-mode .manual-test {
+  display: none !important;
+}
+body.compact-mode .layout {
+  display: block !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+body.compact-mode .camera-panel {
+  width: 100vw !important;
+  height: 100vh !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  display: grid !important;
+  grid-template-rows: minmax(0,1fr) auto !important;
+}
+body.compact-mode .video-stage {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: auto !important;
+}
+body.compact-mode .camera-transport-bar {
+  position: static !important;
+  display: flex !important;
+  padding: 8px !important;
+  gap: 8px !important;
+  background: #0e0e11 !important;
+}
+body.compact-mode .transport-group {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0,1fr)) !important;
+  gap: 7px !important;
+  width: 100% !important;
+}
+body.compact-mode .transport-group .btn {
+  min-width: 0 !important;
+  min-height: 40px !important;
+  padding: 7px 6px !important;
+  font-size: 12px !important;
+}
+body.compact-mode .transport-status {
+  display: none !important;
+}
+
+
+/* ScanCode v1.8 — stable camera controls; Compact View removed */
+.compact-toggle { display: none !important; }
+
+.camera-actions {
+  display: grid !important;
+  grid-template-columns: minmax(230px, 1fr) minmax(260px, 1.1fr) auto !important;
+  gap: 8px !important;
+  width: min(100%, 860px) !important;
+  align-items: center !important;
+  justify-content: stretch !important;
+}
+
+#cameraMode,
+#cameraSelect {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 42px !important;
+  text-overflow: ellipsis;
+}
+
+#cameraSelect:disabled {
+  opacity: .78;
+  cursor: not-allowed;
+}
+
+#restartCameraBtn {
+  min-width: 140px !important;
+  white-space: nowrap !important;
+  height: 42px !important;
+}
+
+@media (max-width: 980px) {
+  .camera-actions {
+    grid-template-columns: 1fr 1fr !important;
+    width: 100% !important;
+  }
+  #restartCameraBtn {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 680px) {
+  .camera-actions {
+    grid-template-columns: 1fr !important;
+  }
+  #restartCameraBtn {
+    grid-column: auto !important;
+  }
+}
+
+.version-tag {
+  font-size: 10px;
+  color: #ef4444;
+  vertical-align: middle;
+  margin-left: 6px;
+  letter-spacing: .08em;
+}

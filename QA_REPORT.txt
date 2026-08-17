@@ -1,3 +1,4 @@
+
 ScanCode QA Report
 ========================================================================
 PASS        JavaScript syntax: main.js

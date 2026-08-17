@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScanCode</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">WAREHOUSE UTILITY</div>
+      <h1>ScanCode <span class="version-tag">v2.0</span></h1>
+    </div>
+    <div class="top-actions">
+      <div id="modeBadge" class="badge warning">BIGSELLER BRIDGE BETA</div>
+      <div id="cameraBadge" class="badge neutral">CAMERA OFF</div>
+      <div id="qualityBadge" class="badge neutral">QUALITY —</div>
+      <div id="syncBadge" class="badge neutral">SERVER NOT SET</div>
+      <div id="recordBadge" class="badge neutral">NOT RECORDING</div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="camera-panel panel">
+      <div class="panel-head">
+        <div>
+          <h2>Live Camera</h2>
+          <p>One autofocus camera: wide recording + zoomed QR/barcode scan crop at the same time.</p>
+        </div>
+        <div class="camera-actions">
+          <select id="cameraMode" aria-label="Camera source">
+            <option value="local">PC / USB / Virtual Camera</option>
+            <option value="phone">Phone / Network Camera (Wi-Fi/LAN/Ethernet)</option>
+          </select>
+          <select id="cameraSelect" aria-label="Camera device"><option value="">Default / Built-in Camera</option></select>
+          <button id="restartCameraBtn" class="btn secondary">Restart camera</button>
+          <button id="diagnoseCameraBtn" class="btn secondary">Diagnose</button>
+        </div>
+      </div>
+
+      <div id="videoStage" class="video-stage">
+        <video id="video" autoplay muted playsinline></video>
+        <img id="phoneFrame" alt="Phone camera feed" />
+        <canvas id="scanCanvas"></canvas>
+        <canvas id="recordCanvas"></canvas>
+
+        <div class="scan-frame" aria-hidden="true">
+          <span class="corner tl"></span>
+          <span class="corner tr"></span>
+          <span class="corner bl"></span>
+          <span class="corner br"></span>
+        </div>
+
+        <div id="recordingOverlay" class="recording-overlay">● RECORDING</div>
+        <div id="cameraMessage" class="camera-message">
+          Opening default camera…
+        </div>
+      </div>
+
+      <div id="phoneBridgePanel" class="phone-bridge hidden">
+        <div><strong>Phone / Network Camera</strong><p>Use a phone camera app that provides a JPEG snapshot or MJPEG stream URL on the same Wi-Fi/LAN/Ethernet network.</p></div>
+        <div class="network-camera-row"><input id="networkCameraUrl" placeholder="http://192.168.1.50:8080/video or /shot.jpg" /><button id="connectNetworkCameraBtn" class="btn secondary">Connect</button></div>
+        <div id="phoneUrls" class="phone-urls">USB cable: choose PC / USB / Virtual Camera if Windows detects the phone as a webcam.</div>
+      </div>
+
+      <div class="camera-transport-bar">
+        <div class="transport-group">
+          <button id="startVideoBtn" class="btn primary">Start / Resume</button>
+          <button id="pauseVideoBtn" class="btn secondary">Pause</button>
+          <button id="stopVideoBtn" class="btn danger">Stop</button>
+        </div>
+        <div id="transportStatus" class="transport-status">Waiting for scan</div>
+      </div>
+
+      <div class="camera-tuning one-camera-tuning">
+        <div class="camera-tuning-copy">
+          <strong>One Autofocus Camera • Two Software Views</strong>
+          <p>The recorded video stays wide so the whole item is visible. At the same time, ScanCode reads a zoomed center crop for QR/barcodes from the exact same camera feed.</p>
+        </div>
+
+        <div class="dual-software-view">
+          <label class="zoom-control">
+            <span>FAR / Recording View <strong id="farViewZoomValue">1.00×</strong></span>
+            <input id="farViewZoom" type="range" min="1" max="1.75" step="0.05" value="1" />
+            <small>Main saved video. Keep near 1.00× for the full packing area.</small>
+          </label>
+
+          <label class="zoom-control">
+            <span>NEAR / Scanner Crop <strong id="scannerZoomValue">1.75×</strong></span>
+            <input id="scannerZoom" type="range" min="1" max="3" step="0.05" value="1.75" />
+            <small>Used only for QR/barcode detection; it does not zoom the main recording.</small>
+          </label>
+        </div>
+
+        <div id="cameraFocusStatus" class="camera-focus-status">Continuous autofocus will be requested when supported by the camera.</div>
+      </div>
+
+      <div class="scan-strip">
+        <div class="scan-strip-left">
+          <span class="label">CURRENT PARCEL</span>
+          <strong id="currentCode">Waiting for scan</strong>
+        </div>
+        <div class="timer-wrap">
+          <span id="recDot" class="rec-dot"></span>
+          <span id="timer">00:00</span>
+        </div>
+      </div>
+
+      <div class="manual-test">
+        <label for="manualCode">Manual test scan</label>
+        <div class="manual-row">
+          <input id="manualCode" placeholder="Type/paste barcode then press Enter" autocomplete="off" />
+          <button id="manualScanBtn" class="btn primary">Simulate Scan</button>
+        </div>
+        <small>Useful if the webcam cannot read your sample label yet.</small>
+      </div>
+    </section>
+
+    <aside class="side-panel">
+      <section class="panel parcel-card">
+        <div class="section-title-row">
+          <div>
+            <div class="eyebrow">ACTIVE RECORD</div>
+            <h2>Parcel Details</h2>
+          </div>
+          <div id="lookupState" class="mini-state neutral">IDLE</div>
+        </div>
+
+        <dl class="details-grid">
+          <div><dt>Tracking</dt><dd id="detailTracking">—</dd></div>
+          <div><dt>Order</dt><dd id="detailOrder">—</dd></div>
+          <div><dt>Courier</dt><dd id="detailCourier">—</dd></div>
+          <div><dt>Customer</dt><dd id="detailCustomer">—</dd></div>
+          <div class="wide"><dt>Item</dt><dd id="detailItem">—</dd></div>
+          <div><dt>Qty</dt><dd id="detailQty">—</dd></div>
+          <div><dt>Status</dt><dd id="detailStatus">—</dd></div>
+        </dl>
+
+        <div class="notice">
+          BigSeller auto-submit is available in beta. Parcel-detail extraction still needs the exact BigSeller result screen/DOM so we can map Order, Courier, Customer, Item and Qty correctly.
+        </div>
+
+        <div class="exception-box">
+          <div class="eyebrow">FAILED / EXCEPTION</div>
+          <div class="exception-actions">
+            <select id="exceptionType">
+              <option value="">No exception</option>
+              <option value="DAMAGED">Damaged parcel/item</option>
+              <option value="WRONG_ITEM">Wrong item</option>
+              <option value="MISSING_ITEM">Missing item</option>
+              <option value="BARCODE_UNREADABLE">Barcode unreadable</option>
+              <option value="PACKING_ISSUE">Packing issue</option>
+              <option value="FOR_SUPERVISOR">For supervisor</option>
+            </select>
+            <button id="markExceptionBtn" class="btn danger">Mark</button>
+          </div>
+          <div id="exceptionStatus" class="exception-status">No exception on current parcel.</div>
+        </div>
+      </section>
+
+      <section class="panel settings-card">
+        <div class="section-title-row">
+          <div>
+            <div class="eyebrow">LOCAL SETTINGS</div>
+            <h2>Station</h2>
+          </div>
+        </div>
+
+        <label>Station name
+          <input id="stationName" value="Station 01" />
+        </label>
+
+        <label>Operator
+          <input id="operatorName" placeholder="Optional" />
+        </label>
+
+        <label class="switch-row sound-row"><input id="successSoundEnabled" type="checkbox" checked /><span>Scan success sound</span></label>
+        <button id="testSoundBtn" class="btn secondary full">Test scan sound</button>
+
+        <label>Video overlap
+          <select id="overlapMs">
+            <option value="500">0.5 second</option>
+            <option value="900" selected>0.9 second</option>
+            <option value="1500">1.5 seconds</option>
+            <option value="2000">2 seconds</option>
+          </select>
+        </label>
+
+        <div class="storage-block">
+          <span class="storage-label">Local autosave</span>
+          <div id="folderPath" class="folder-path">—</div>
+          <div id="todayFolder" class="today-folder">Today: —</div>
+        </div>
+
+        <button id="openFolderBtn" class="btn secondary full">Open local recordings</button>
+
+        <div class="server-divider"></div>
+        <div class="section-title-row compact">
+          <div>
+            <div class="eyebrow">SERVER TRANSFER</div>
+            <h2>Auto Sync</h2>
+          </div>
+          <label class="switch-row">
+            <input id="autoSyncEnabled" type="checkbox" checked />
+            <span>On</span>
+          </label>
+        </div>
+
+        <label>Server shared folder / UNC path
+          <input id="serverFolder" placeholder="\\SERVER-PC\ScanCode" />
+        </label>
+        <small class="settings-help">You can type a UNC/network path or choose a shared folder while the server is online.</small>
+
+        <button id="chooseServerFolderBtn" class="btn secondary full">Choose server folder</button>
+        <div class="server-action-row">
+          <button id="syncNowBtn" class="btn secondary">Sync now</button>
+          <button id="openServerBtn" class="btn secondary">Open server</button>
+        </div>
+        <div id="syncStatusText" class="sync-status-text">Server destination not configured.</div>
+
+        <div class="server-divider"></div>
+        <div class="section-title-row compact">
+          <div>
+            <div class="eyebrow">BIGSELLER</div>
+            <h2>Auto Submit</h2>
+          </div>
+          <label class="switch-row">
+            <input id="bigSellerAutoSubmit" type="checkbox" checked />
+            <span>On</span>
+          </label>
+        </div>
+        <label>BigSeller page URL
+          <input id="bigSellerUrl" placeholder="Paste the BigSeller page URL tomorrow" />
+        </label>
+        <button id="openBigSellerBtn" class="btn secondary full">Open BigSeller bridge</button>
+        <div id="bigSellerStatus" class="sync-status-text">Set the BigSeller page URL, then open the bridge. Exact field mapping will be finalized against the actual BigSeller warehouse page.</div>
+
+        <div class="server-divider"></div>
+        <div class="section-title-row compact">
+          <div>
+            <div class="eyebrow">SCANNER SAFETY</div>
+            <h2>Automation</h2>
+          </div>
+        </div>
+
+        <label class="switch-row"><input id="autoStartWithWindows" type="checkbox" checked /><span>Auto-start with Windows</span></label>
+        <label class="switch-row"><input id="cameraQualityEnabled" type="checkbox" checked /><span>Automatic camera quality check</span></label>
+
+        <label>Scan confirmation
+          <select id="scanConfirmations">
+            <option value="1">1 matching read</option>
+            <option value="2" selected>2 matching reads</option>
+            <option value="3">3 matching reads</option>
+          </select>
+        </label>
+
+        <label>Barcode filtering
+          <select id="barcodeFilter">
+            <option value="shipping" selected>Shipping labels (recommended)</option>
+            <option value="qr">QR only</option>
+            <option value="all">All supported formats</option>
+          </select>
+        </label>
+
+        <button id="endShiftBtn" class="btn primary full">End-of-shift verification</button>
+        <div id="shiftStatus" class="sync-status-text">Not checked yet.</div>
+
+      </section>
+    </aside>
+  </main>
+
+  <section class="panel history-panel">
+    <div class="panel-head">
+      <div>
+        <h2>Session History</h2>
+        <p>Each completed parcel creates an evidence bundle (video + waybill screenshot + metadata). Individual files are copied to the server daily folder, verified, then removed from the scanner PC.</p>
+      </div>
+      <div id="scanCount" class="count">0 saved</div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Parcel</th>
+            <th>Duration</th>
+            <th>File</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr class="empty-row"><td colspan="5">No recordings saved yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel server-search-panel">
+    <div class="panel-head">
+      <div>
+        <h2>Server Parcel Search / Playback</h2>
+        <p>Search the central server by scanned QR/barcode. Video, waybill and metadata files are grouped by matching code.</p>
+      </div>
+      <div class="search-row">
+        <input id="serverSearchInput" placeholder="Tracking / parcel code" />
+        <button id="serverSearchBtn" class="btn primary">Search Server</button>
+      </div>
+    </div>
+    <div class="server-search-body">
+      <div id="serverSearchResults" class="search-results">No search yet.</div>
+      <div class="preview-stack">
+        <video id="serverVideoPlayer" controls></video>
+        <img id="serverWaybillPreview" alt="Waybill preview" />
+      </div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="./renderer.js"></script>
+</body>
+</html>

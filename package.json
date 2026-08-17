@@ -26,8 +26,18 @@
     "win": {
       "executableName": "ScanCode",
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "artifactName": "ScanCode-Portable-${version}-${arch}.${ext}",
@@ -38,14 +48,18 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "ScanCode",
-      "uninstallDisplayName": "ScanCode — John Mark Bataller",
+      "uninstallDisplayName": "ScanCode \u2014 John Mark Bataller",
       "artifactName": "ScanCode-Setup-${version}-${arch}.${ext}"
     },
-    "copyright": "Copyright © 2026 John Mark Bataller",
+    "copyright": "Copyright \u00a9 2026 John Mark Bataller",
     "asar": true,
     "compression": "maximum",
-    "electronLanguages": ["en-US"],
-    "extraMetadata": { "author": "John Mark Bataller" }
+    "electronLanguages": [
+      "en-US"
+    ],
+    "extraMetadata": {
+      "author": "John Mark Bataller"
+    }
   },
   "author": "John Mark Bataller"
 }
