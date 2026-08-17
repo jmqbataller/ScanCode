@@ -1,0 +1,38 @@
+ScanCode QA Report
+========================================================================
+PASS        JavaScript syntax: main.js
+PASS        JavaScript syntax: src/renderer.js
+PASS        No duplicate HTML IDs
+PASS        All renderer element refs exist
+PASS        Uninstall button removed from app UI
+PASS        Compact View removed from UI/runtime
+PASS        Camera device selector has a visible fallback
+PASS        Recording controls wired
+PASS        Camera device enumeration is wired
+PASS        Camera startup avoids temporary probe stream
+PASS        Built-in/USB camera is the default startup path
+PASS        F1/F2/F3 recording shortcuts wired
+PASS        All renderer IPC calls have main handlers
+PASS        Daily Documents\ScanCode storage
+PASS        QR/barcode filename based video save
+PASS        Waybill snapshot save
+PASS        Crash recovery handlers
+PASS        Server SHA-256 verification
+PASS        Server verified local deletion rule
+PASS        Camera quality check
+PASS        Camera watchdog
+PASS        Scan confidence confirmation
+PASS        Barcode filtering
+PASS        Success scan sound
+PASS        End-of-shift verification
+PASS        Server parcel search/playback
+PASS        Standalone uninstall script exists
+PASS        Installer script exists
+PASS        Author metadata
+PASS        Electron build config has NSIS + portable
+NEEDS SETUP Camera hardware + Windows camera permission — Must be verified on each warehouse PC/camera.
+NEEDS SETUP BigSeller exact field/result extraction — Needs the exact BigSeller warehouse page URL/DOM; current bridge is guarded until URL is set.
+NEEDS SETUP Central server transfer/playback — Requires the real UNC server path and credentials/network access.
+NEEDS SETUP Phone/network camera — Requires a reachable MJPEG/JPEG camera URL.
+========================================================================
+PASS: 30   FAIL: 0   NEEDS SETUP: 4
