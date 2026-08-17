@@ -1,1 +1,1 @@
-Build and publish ScanCode v2.0.2 Windows Setup EXE — verified release run.
+Build and publish ScanCode v2.0.2 Windows Setup EXE — diagnostic run.
