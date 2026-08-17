@@ -1,12 +1,13 @@
 {
   "name": "scancode",
-  "version": "2.0.1",
-  "description": "ScanCode Camera Rescue build with robust uninstall cleanup, orphaned Installed Apps repair, complete Electron media permission handling, direct default-camera startup, timeouts, diagnostics, warehouse evidence recording, and server sync.",
+  "version": "2.0.2",
+  "description": "ScanCode Camera Rescue deployment build with robust uninstall cleanup, orphaned Installed Apps repair, complete Electron media permission handling, direct default-camera startup, timeouts, diagnostics, warehouse evidence recording, and server sync.",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis portable"
+    "dist": "electron-builder --win nsis portable",
+    "dist:setup": "electron-builder --win nsis"
   },
   "dependencies": {
     "@zxing/browser": "latest"
