@@ -1,0 +1,51 @@
+{
+  "name": "scancode",
+  "version": "2.0.0",
+  "description": "ScanCode Camera Rescue build with complete Electron media permission handling, direct default-camera startup, timeouts, diagnostics, warehouse evidence recording, and server sync.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable"
+  },
+  "dependencies": {
+    "@zxing/browser": "latest"
+  },
+  "devDependencies": {
+    "electron": "latest",
+    "electron-builder": "latest"
+  },
+  "build": {
+    "appId": "com.johnmarkbataller.scancode",
+    "productName": "ScanCode",
+    "files": [
+      "main.js",
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "executableName": "ScanCode",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "artifactName": "ScanCode-Portable-${version}-${arch}.${ext}",
+    "nsis": {
+      "oneClick": true,
+      "perMachine": true,
+      "deleteAppDataOnUninstall": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ScanCode",
+      "uninstallDisplayName": "ScanCode — John Mark Bataller",
+      "artifactName": "ScanCode-Setup-${version}-${arch}.${ext}"
+    },
+    "copyright": "Copyright © 2026 John Mark Bataller",
+    "asar": true,
+    "compression": "maximum",
+    "electronLanguages": ["en-US"],
+    "extraMetadata": { "author": "John Mark Bataller" }
+  },
+  "author": "John Mark Bataller"
+}
