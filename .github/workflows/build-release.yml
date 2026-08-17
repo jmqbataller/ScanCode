@@ -1,0 +1,61 @@
+name: Build ScanCode Windows Setup
+
+on:
+  push:
+    paths:
+      - 'release-trigger-v2.0.2.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package.json
+
+      - name: Install dependencies
+        shell: pwsh
+        run: npm install --no-audit --no-fund
+
+      - name: Run ScanCode software QA
+        shell: pwsh
+        run: node qa/qa.js
+
+      - name: Build Windows Setup EXE
+        shell: pwsh
+        run: npm run dist:setup
+
+      - name: Verify Setup EXE
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem -Path dist -Filter 'ScanCode-Setup-2.0.2-x64.exe' | Select-Object -First 1
+          if (-not $setup) { throw 'ScanCode Setup EXE was not generated.' }
+          Write-Host "Setup ready: $($setup.FullName)"
+          Write-Host "Size: $([math]::Round($setup.Length / 1MB, 2)) MB"
+
+      - name: Create GitHub Release and upload Setup EXE
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $setup = (Get-ChildItem -Path dist -Filter 'ScanCode-Setup-2.0.2-x64.exe' | Select-Object -First 1).FullName
+          if (gh release view v2.0.2 --repo $env:GITHUB_REPOSITORY 2>$null) {
+            gh release upload v2.0.2 "$setup" --clobber --repo $env:GITHUB_REPOSITORY
+          } else {
+            gh release create v2.0.2 "$setup" `
+              --repo $env:GITHUB_REPOSITORY `
+              --target $env:GITHUB_SHA `
+              --title 'ScanCode v2.0.2 — Windows Setup' `
+              --notes 'Deployment release for warehouse PCs. Download ScanCode-Setup-2.0.2-x64.exe, run it as Administrator, and ScanCode will install system-wide with Desktop/Start Menu shortcuts and Windows uninstall registration. Author: John Mark Bataller.'
+          }
