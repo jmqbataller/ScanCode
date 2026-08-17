@@ -58,7 +58,17 @@ jobs:
 
       - name: Build Windows Setup EXE
         shell: pwsh
-        run: npm run dist:setup
+        run: |
+          & npm run dist:setup 2>&1 | Tee-Object -FilePath build-output.log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            "BUILD_FAILED $(Get-Date -Format o)" | Set-Content BUILD_STAGE_v2.0.2.txt
+            Get-Content build-output.log -Tail 250 | Set-Content BUILD_ERROR_v2.0.2.txt
+            git add BUILD_STAGE_v2.0.2.txt BUILD_ERROR_v2.0.2.txt
+            git commit -m "Record ScanCode v2.0.2 build failure"
+            git push
+            exit $code
+          }
 
       - name: Verify Setup EXE
         shell: pwsh
