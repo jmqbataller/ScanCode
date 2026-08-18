@@ -1,0 +1,92 @@
+name: ScanCode v2.0.4 Camera Regression Fix
+
+on:
+  push:
+    paths:
+      - 'release-trigger-v2.0.4.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Apply known-working camera patch
+        shell: pwsh
+        run: python tools/apply-camera-regression-v2.0.4.py
+
+      - name: Verify JavaScript syntax
+        shell: pwsh
+        run: |
+          node --check main.js
+          node --check src/renderer.js
+
+      - name: Run ScanCode QA
+        shell: pwsh
+        run: node qa/qa.js
+
+      - name: Commit stabilized source
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add main.js src/renderer.js src/index.html package.json qa/qa.js
+          git commit -m "Fix camera with proven v1.3 ZXing pipeline (v2.0.4)"
+          git push
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        shell: pwsh
+        run: npm install --no-audit --no-fund
+
+      - name: Run QA after dependency install
+        shell: pwsh
+        run: node qa/qa.js
+
+      - name: Build Windows Setup EXE
+        shell: pwsh
+        run: npm run dist:setup
+
+      - name: Verify installer exists
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem -Path dist -Filter 'ScanCode-Setup-2.0.4-x64.exe' | Select-Object -First 1
+          if (-not $setup) { throw 'ScanCode v2.0.4 Setup EXE was not generated.' }
+          Write-Host "Installer: $($setup.FullName)"
+          Write-Host "Size: $([math]::Round($setup.Length / 1MB, 2)) MB"
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $setup = (Get-ChildItem -Path dist -Filter 'ScanCode-Setup-2.0.4-x64.exe' | Select-Object -First 1).FullName
+          if (gh release view v2.0.4 --repo $env:GITHUB_REPOSITORY 2>$null) {
+            gh release upload v2.0.4 "$setup" --clobber --repo $env:GITHUB_REPOSITORY
+          } else {
+            gh release create v2.0.4 "$setup" `
+              --repo $env:GITHUB_REPOSITORY `
+              --target main `
+              --title 'ScanCode v2.0.4 — Proven Camera Regression Fix' `
+              --notes 'Camera regression fix. Restores the direct ZXing decodeFromConstraints webcam pipeline from ScanCode v1.3, which was confirmed working with the built-in HP TrueVision camera. Keeps current recording, QR/barcode scanning, server sync, evidence, diagnostics and BigSeller features. Author: John Mark Bataller.'
+          }
+
+      - name: Record successful release
+        shell: pwsh
+        run: |
+          $stamp = Get-Date -Format o
+          "ScanCode v2.0.4 Camera Regression Fix SUCCESS`nAsset: ScanCode-Setup-2.0.4-x64.exe`nReleased: $stamp" | Set-Content CAMERA_FIX_SUCCESS_v2.0.4.txt
+          git pull --rebase
+          git add CAMERA_FIX_SUCCESS_v2.0.4.txt
+          git commit -m "Record successful ScanCode v2.0.4 camera release"
+          git push
