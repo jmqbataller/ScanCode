@@ -1,1 +1,1 @@
-Build and publish ScanCode v3.0.0 stable runtime rebuild with real Electron fake-webcam smoke test.
+Build and publish ScanCode v3.0.0 stable runtime rebuild with real Electron fake-webcam smoke test — instrumented retry.
