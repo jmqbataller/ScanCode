@@ -1,0 +1,4 @@
+ScanCode v4.0.0 NATIVE BUILD SUCCESS
+Core tests: PASS
+Installer: ScanCode-Setup-4.0.0-x64.exe
+Built: 2026-08-18T00:36:22.1116564+00:00
