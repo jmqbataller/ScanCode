@@ -16,16 +16,26 @@ def main():
     assert app.pause_resume_btn.cget('state') == 'disabled'
     assert app.video_border.winfo_height() <= 505
 
-    # Simulate a live recording to test Start/Stop and Pause/Resume button states.
-    dummy = SimpleNamespace(code='QA-001', paused=False, stop_at=None)
-    app.current_session = dummy
-    app.update_transport_controls()
+    # v4.2 master Start enables the scanner workflow without creating a fake parcel.
+    app.start_stop()
+    root.update_idletasks()
+    assert app.system_running is True
+    assert app.current_session is None
     assert app.start_stop_btn.cget('text') == 'Stop'
     assert app.pause_resume_btn.cget('text') == 'Pause'
     assert app.pause_resume_btn.cget('state') == 'normal'
+
+    # Pause/Resume is system-wide and also applies to a current parcel when present.
+    dummy = SimpleNamespace(code='QA-001', paused=False, stop_at=None)
+    app.current_session = dummy
     app.pause_resume()
+    assert app.system_paused is True
     assert dummy.paused is True
     assert app.pause_resume_btn.cget('text') == 'Resume'
+    app.pause_resume()
+    assert app.system_paused is False
+    assert dummy.paused is False
+    assert app.pause_resume_btn.cget('text') == 'Pause'
 
     # Narrow window must stack, not hide, the side panel and search panel.
     root.geometry('800x600')
@@ -41,12 +51,13 @@ def main():
     bbox = app.body_canvas.bbox('all')
     assert bbox is not None and bbox[3] > app.body_canvas.winfo_height()
 
-    # Restore dummy state without finalization work and exit cleanly.
+    # Avoid finalizing dummy session in teardown.
     app.current_session = None
+    app.system_running = False
     app.ending_sessions = []
     app.camera_stop.set(); app.sync_stop.set()
     root.destroy()
-    print('UI PASS: fixed camera preview, scrollable workspace, responsive stacking, Start/Stop + Pause/Resume states')
+    print('UI PASS: scrollable layout + master Start/Stop + system Pause/Resume states')
 
 
 if __name__ == '__main__':
