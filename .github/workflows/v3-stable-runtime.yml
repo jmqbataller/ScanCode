@@ -26,14 +26,18 @@ jobs:
         shell: pwsh
         run: node qa/qa.js
 
-      - name: Commit stable source
+      - name: Commit stable source if changed
         shell: pwsh
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add main.js src/renderer.js src/index.html package.json qa/qa.js
-          git commit -m "Rebuild ScanCode runtime core v3.0.0"
-          git push
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "Rebuild ScanCode runtime core v3.0.0"
+            git push
+          } else {
+            Write-Host "Stable source already committed."
+          }
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -49,16 +53,45 @@ jobs:
         run: node qa/qa.js
 
       - name: Runtime smoke test - fake webcam + recording save
+        id: smoke
+        continue-on-error: true
         shell: pwsh
         timeout-minutes: 3
         run: |
-          Remove-Item SMOKE_RUNTIME_OK.txt,SMOKE_RUNTIME_FAIL.txt -Force -ErrorAction SilentlyContinue
-          npm run smoke
+          Remove-Item SMOKE_RUNTIME_OK.txt,SMOKE_RUNTIME_FAIL.txt,SMOKE_CONSOLE.txt -Force -ErrorAction SilentlyContinue
+          npm run smoke *> SMOKE_CONSOLE.txt
+          $exitCode = $LASTEXITCODE
+          Get-Content SMOKE_CONSOLE.txt -ErrorAction SilentlyContinue
           if (-not (Test-Path SMOKE_RUNTIME_OK.txt)) {
             if (Test-Path SMOKE_RUNTIME_FAIL.txt) { Get-Content SMOKE_RUNTIME_FAIL.txt }
-            throw 'Runtime smoke test did not produce PASS marker.'
+            if ($exitCode -eq 0) { $exitCode = 1 }
           }
-          Get-Content SMOKE_RUNTIME_OK.txt
+          exit $exitCode
+
+      - name: Record runtime smoke result
+        if: always()
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if (Test-Path SMOKE_RUNTIME_OK.txt) {
+            "PASS $(Get-Date -Format o)" | Set-Content V3_RUNTIME_STAGE.txt
+          } else {
+            "FAIL $(Get-Date -Format o)" | Set-Content V3_RUNTIME_STAGE.txt
+            if (Test-Path SMOKE_RUNTIME_FAIL.txt) { Copy-Item SMOKE_RUNTIME_FAIL.txt V3_RUNTIME_FAIL.txt -Force }
+            if (Test-Path SMOKE_CONSOLE.txt) { Add-Content V3_RUNTIME_FAIL.txt "`n--- CONSOLE ---"; Get-Content SMOKE_CONSOLE.txt | Add-Content V3_RUNTIME_FAIL.txt }
+          }
+          git pull --rebase
+          git add V3_RUNTIME_STAGE.txt V3_RUNTIME_FAIL.txt 2>$null
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "Record ScanCode v3 runtime smoke result"
+            git push
+          }
+
+      - name: Stop if runtime smoke failed
+        if: steps.smoke.outcome != 'success'
+        shell: pwsh
+        run: throw 'ScanCode runtime smoke test failed. See V3_RUNTIME_FAIL.txt in the repository.'
 
       - name: Build Windows Setup EXE
         shell: pwsh
