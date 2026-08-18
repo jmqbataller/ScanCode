@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import queue
+import subprocess
 import sys
 import threading
 import time
@@ -39,7 +40,7 @@ from scancode_core import (
     zoom_crop,
 )
 
-APP_VERSION = "4.1.0"
+APP_VERSION = "4.2.0"
 APP_NAME = "ScanCode"
 RED = "#d51f2a"
 DARK_RED = "#8f151c"
@@ -94,6 +95,10 @@ class ScanCodeApp:
         self.sync_stop = threading.Event()
         self.sync_thread = None
         self.preview_photo = None
+        # Master workflow state: camera may stay live, but barcode automation and
+        # parcel recording are disabled until the operator presses Start.
+        self.system_running = False
+        self.system_paused = False
 
         recovered = recover_recordings(self.local_root)
         self.build_style()
@@ -126,7 +131,7 @@ class ScanCodeApp:
             "scanner_zoom": 1.75,
             "scan_confirmations": 2,
             "barcode_filter": "shipping",
-            "overlap_ms": 900,
+            "overlap_ms": 0,
             "sound": True,
             "quality": True,
             "server_folder": "",
@@ -134,6 +139,7 @@ class ScanCodeApp:
             "auto_start": False,
             "bigseller_url": "",
             "bigseller_auto": True,
+            "scan_target": "Notepad Test",
         }
 
     def load_settings(self):
@@ -164,6 +170,7 @@ class ScanCodeApp:
             "auto_start": bool(self.auto_start_var.get()),
             "bigseller_url": self.bigseller_var.get().strip(),
             "bigseller_auto": bool(self.bigseller_auto_var.get()),
+            "scan_target": self.target_var.get() or "Notepad Test",
         })
         try:
             self.settings_path.write_text(json.dumps(self.settings, indent=2), encoding="utf-8")
@@ -209,7 +216,7 @@ class ScanCodeApp:
         self.camera_badge = self.make_badge(badges, "CAMERA STARTING")
         self.quality_badge = self.make_badge(badges, "QUALITY —")
         self.server_badge = self.make_badge(badges, "SERVER NOT SET")
-        self.record_badge = self.make_badge(badges, "NOT RECORDING")
+        self.record_badge = self.make_badge(badges, "SYSTEM STOPPED")
 
         # The entire workspace below the top bar is one vertically scrollable canvas.
         # This prevents the camera preview from pushing settings/history off-screen.
@@ -269,7 +276,7 @@ class ScanCodeApp:
         self.start_stop_btn.pack(side="left", padx=(0,8))
         self.pause_resume_btn = self.button(transport, "Pause", self.pause_resume)
         self.pause_resume_btn.pack(side="left")
-        self.transport_status = self.label(transport, "Waiting for scan", 9, True, MUTED)
+        self.transport_status = self.label(transport, "System stopped • press Start", 9, True, MUTED)
         self.transport_status.pack(side="right")
         self.update_transport_controls()
 
@@ -368,10 +375,12 @@ class ScanCodeApp:
         self.check(settings, "Camera quality check", self.quality_var)
         self.check(settings, "Auto-start with Windows", self.auto_start_var)
 
-        self.confirm_var = tk.StringVar(); self.filter_var = tk.StringVar(); self.overlap_var = tk.StringVar()
+        self.confirm_var = tk.StringVar(); self.filter_var = tk.StringVar(); self.overlap_var = tk.StringVar(value="0")
+        self.target_var = tk.StringVar()
         self.combo_row(settings, "Scan confirmation", self.confirm_var, ["1","2","3"])
         self.combo_row(settings, "Barcode filter", self.filter_var, ["shipping","qr","all"])
-        self.combo_row(settings, "Overlap ms", self.overlap_var, ["500","900","1500","2000"])
+        self.combo_row(settings, "Scan output target", self.target_var, ["Notepad Test","BigSeller"])
+        tk.Label(settings, text="Next accepted scan instantly closes the previous parcel video and starts the new parcel.", bg=PANEL, fg=MUTED, font=("Segoe UI",8), wraplength=285, justify="left").pack(anchor="w", padx=14, pady=(4,6))
 
         self.far_zoom_var = tk.DoubleVar(); self.scanner_zoom_var = tk.DoubleVar()
         self.scale_row(settings, "FAR / Recording Zoom", self.far_zoom_var, 1.0, 1.75)
@@ -392,9 +401,9 @@ class ScanCodeApp:
         self.label(big, "BIGSELLER BRIDGE", 8, True, MUTED).pack(anchor="w", padx=14, pady=(12,4))
         self.bigseller_var = tk.StringVar(); self.bigseller_auto_var = tk.BooleanVar()
         self.entry_row(big, "Page URL", self.bigseller_var)
-        self.check(big, "Auto-submit scanned code", self.bigseller_auto_var)
+        tk.Label(big, text="Choose BigSeller in Scan output target for production. Use Notepad Test while validating scans.", bg=PANEL, fg=MUTED, font=("Segoe UI",8), wraplength=285, justify="left").pack(anchor="w", padx=14, pady=(4,6))
         self.button(big, "Open BigSeller", self.open_bigseller).pack(fill="x", padx=14, pady=(4,6))
-        self.bigseller_status = self.label(big, "UI Automation beta", 8, False, MUTED); self.bigseller_status.pack(anchor="w", padx=14, pady=(0,10))
+        self.bigseller_status = self.label(big, "Scan output: Notepad Test", 8, False, MUTED); self.bigseller_status.pack(anchor="w", padx=14, pady=(0,10))
 
         self.button(self.side, "End-of-shift verification", self.end_shift, True).pack(fill="x")
 
@@ -449,7 +458,7 @@ class ScanCodeApp:
         s=self.settings
         self.station_var.set(s["station"]);self.operator_var.set(s["operator"]);self.camera_var.set(str(s["camera_index"]));self.network_var.set(s["network_url"]);self.mode_var.set(s["camera_mode"])
         self.far_zoom_var.set(s["far_zoom"]);self.scanner_zoom_var.set(s["scanner_zoom"]);self.confirm_var.set(str(s["scan_confirmations"]));self.filter_var.set(s["barcode_filter"]);self.overlap_var.set(str(s["overlap_ms"]))
-        self.sound_var.set(s["sound"]);self.quality_var.set(s["quality"]);self.server_var.set(s["server_folder"]);self.auto_sync_var.set(s["auto_sync"]);self.auto_start_var.set(s["auto_start"]);self.bigseller_var.set(s["bigseller_url"]);self.bigseller_auto_var.set(s["bigseller_auto"])
+        self.sound_var.set(s["sound"]);self.quality_var.set(s["quality"]);self.server_var.set(s["server_folder"]);self.auto_sync_var.set(s["auto_sync"]);self.auto_start_var.set(s["auto_start"]);self.bigseller_var.set(s["bigseller_url"]);self.bigseller_auto_var.set(s["bigseller_auto"]);self.target_var.set(s.get("scan_target","Notepad Test"));self.overlap_var.set("0")
 
     def camera_source_changed(self):
         self.save_settings(); self.restart_camera()
@@ -538,6 +547,10 @@ class ScanCodeApp:
         for s in finalize:self.finalize_session(s)
 
     def handle_barcode(self,code,fmt):
+        # Camera preview remains live, but the scanner is intentionally gated by
+        # Start/Stop so opening ScanCode cannot accidentally submit a parcel.
+        if not self.system_running or self.system_paused:
+            return
         now=time.time();needed=max(1,int(self.confirm_var.get() or 2))
         if self.scan_candidate["code"]==code and now-self.scan_candidate["at"]<1.2:self.scan_candidate["count"]+=1
         else:self.scan_candidate={"code":code,"count":1,"at":now}
@@ -546,88 +559,146 @@ class ScanCodeApp:
             self.scan_candidate={"code":None,"count":0,"at":0};self.accept_scan(code)
 
     def accept_scan(self,raw_code):
-        code=str(raw_code).strip()
-        if len(code)<3:return
-        now=time.time()
-        if self.current_session and self.current_session.code==code:return
-        if self.last_accepted["code"]==code and now-self.last_accepted["at"]<1.4:return
-        with self.frame_lock:frame=None if self.latest_frame is None else self.latest_frame.copy()
-        if frame is None:return self.toast("Camera frame not ready.")
-        self.last_accepted={"code":code,"at":now}
-        day=self.local_root/day_name();day.mkdir(parents=True,exist_ok=True);base=unique_base(day,code)
-        h,w=frame.shape[:2]
-        fps=25.0
-        if self.capture:
-            v=float(self.capture.get(cv2.CAP_PROP_FPS) or 25);fps=v if 5<=v<=60 else 25
-        try:new=ParcelSession(code,base,day,w,h,fps,self.station_var.get().strip() or "Station 01",self.operator_var.get().strip())
-        except Exception as exc:return self.toast(str(exc))
-        crop=waybill_crop(frame,float(self.scanner_zoom_var.get() or 1.75));cv2.imwrite(str(new.waybill_path),crop)
+        if not self.system_running:
+            return self.toast("Press Start first.")
+        if self.system_paused:
+            return self.toast("System is paused. Press Resume first.")
+
+        code = str(raw_code).strip()
+        if len(code) < 3:
+            return
+        now = time.time()
+        if self.current_session and self.current_session.code == code:
+            return
+        if self.last_accepted["code"] == code and now - self.last_accepted["at"] < 1.4:
+            return
+
+        with self.frame_lock:
+            frame = None if self.latest_frame is None else self.latest_frame.copy()
+        if frame is None:
+            return self.toast("Camera frame not ready.")
+
+        self.last_accepted = {"code": code, "at": now}
+
+        old = None
         with self.sessions_lock:
-            old=self.current_session
-            if old:
-                old.stop_at=time.time()+int(self.overlap_var.get() or 900)/1000.0;self.ending_sessions.append(old)
-            self.current_session=new
-        self.current_code.configure(text=code);self.detail_status.configure(text="RECORDING",fg=RED);self.transport_status.configure(text=f"Recording • {code}",fg=TEXT);self.video_border.configure(bg=RED);self.set_badge(self.record_badge,"● RECORDING","bad");self.update_transport_controls()
+            old = self.current_session
+            self.current_session = None
+            if old in self.ending_sessions:
+                self.ending_sessions.remove(old)
+        if old:
+            old.stop_at = time.time()
+            self.finalize_session(old)
+
+        day = self.local_root / day_name()
+        day.mkdir(parents=True, exist_ok=True)
+        base = unique_base(day, code)
+        h, w = frame.shape[:2]
+        fps = 25.0
+        if self.capture:
+            v = float(self.capture.get(cv2.CAP_PROP_FPS) or 25)
+            fps = v if 5 <= v <= 60 else 25
+
+        try:
+            new = ParcelSession(code, base, day, w, h, fps, self.station_var.get().strip() or "Station 01", self.operator_var.get().strip())
+        except Exception as exc:
+            return self.toast(str(exc))
+
+        crop = waybill_crop(frame, float(self.scanner_zoom_var.get() or 1.75))
+        cv2.imwrite(str(new.waybill_path), crop)
+        with self.sessions_lock:
+            self.current_session = new
+
+        self.current_code.configure(text=code)
+        self.detail_status.configure(text="RECORDING", fg=RED)
+        self.transport_status.configure(text=f"System active • Recording {code}", fg=TEXT)
+        self.video_border.configure(bg=RED)
+        self.set_badge(self.record_badge, "● RECORDING", "bad")
+        self.update_transport_controls()
+
         if self.sound_var.get() and winsound:
-            threading.Thread(target=lambda:(winsound.Beep(880,70),winsound.Beep(1180,80)),daemon=True).start()
-        if self.bigseller_auto_var.get():threading.Thread(target=self.submit_bigseller,args=(code,),daemon=True).start()
+            threading.Thread(target=lambda: (winsound.Beep(880,70), winsound.Beep(1180,80)), daemon=True).start()
+
+        threading.Thread(target=self.submit_scan_target, args=(code,), daemon=True).start()
 
     def manual_scan(self):
+        if not self.system_running:
+            return self.toast("Press Start first.")
         code=self.manual_var.get().strip()
         if code:self.manual_var.set("");self.accept_scan(code)
 
     def update_transport_controls(self):
         if not hasattr(self, "start_stop_btn"):
             return
-        session = self.current_session
-        if session:
-            self.start_stop_btn.configure(text="Stop", bg=RED, activebackground=DARK_RED, state="normal")
-            self.pause_resume_btn.configure(
-                text="Resume" if session.paused else "Pause",
-                state="normal",
-                bg=PANEL2,
-                activebackground="#24242b",
-            )
-        else:
+        if not self.system_running:
             self.start_stop_btn.configure(text="Start", bg=RED, activebackground=DARK_RED, state="normal")
             self.pause_resume_btn.configure(text="Pause", state="disabled", disabledforeground=MUTED)
+            return
+
+        self.start_stop_btn.configure(text="Stop", bg=RED, activebackground=DARK_RED, state="normal")
+        self.pause_resume_btn.configure(
+            text="Resume" if self.system_paused else "Pause",
+            state="normal",
+            bg=PANEL2,
+            activebackground="#24242b",
+        )
 
     def start_stop(self):
-        if self.current_session:
-            return self.stop_recording()
-        code = self.manual_var.get().strip() or f"MANUAL-{int(time.time())}"
-        self.accept_scan(code)
+        if not self.system_running:
+            self.system_running = True
+            self.system_paused = False
+            self.scan_candidate = {"code": None, "count": 0, "at": 0.0}
+            self.transport_status.configure(text="System active • waiting for QR/barcode", fg=GREEN)
+            self.set_badge(self.record_badge, "SYSTEM READY", "good")
+            self.update_transport_controls()
+            self.toast("ScanCode started. Scanner is active.")
+            return
+        self.stop_system()
 
-    # Backwards-compatible alias for older internal calls / shortcuts.
     def start_resume(self):
         self.start_stop()
 
     def pause_resume(self):
-        if not self.current_session:
-            return self.toast("No active recording.")
-        self.current_session.paused = not self.current_session.paused
-        if self.current_session.paused:
-            self.set_badge(self.record_badge, "PAUSED", "warn")
-            self.transport_status.configure(text=f"Paused • {self.current_session.code}", fg=AMBER)
+        if not self.system_running:
+            return self.toast("Press Start first.")
+        self.system_paused = not self.system_paused
+        with self.sessions_lock:
+            if self.current_session:
+                self.current_session.paused = self.system_paused
+
+        if self.system_paused:
+            self.set_badge(self.record_badge, "SYSTEM PAUSED", "warn")
+            self.transport_status.configure(text="System paused • scanning and recording paused", fg=AMBER)
         else:
-            self.set_badge(self.record_badge, "● RECORDING", "bad")
-            self.transport_status.configure(text=f"Recording • {self.current_session.code}", fg=TEXT)
+            if self.current_session:
+                self.set_badge(self.record_badge, "● RECORDING", "bad")
+                self.transport_status.configure(text=f"System active • Recording {self.current_session.code}", fg=TEXT)
+            else:
+                self.set_badge(self.record_badge, "SYSTEM READY", "good")
+                self.transport_status.configure(text="System active • waiting for QR/barcode", fg=GREEN)
         self.update_transport_controls()
 
-    def stop_recording(self):
+    def stop_system(self):
+        self.system_running = False
+        self.system_paused = False
+        old = None
         with self.sessions_lock:
-            if not self.current_session:
-                return self.toast("No active recording.")
-            s = self.current_session
+            old = self.current_session
             self.current_session = None
-            s.stop_at = time.time()
-            self.ending_sessions.append(s)
+        if old:
+            old.stop_at = time.time()
+            self.finalize_session(old)
+
         self.current_code.configure(text="Waiting for scan")
         self.detail_status.configure(text="IDLE", fg=MUTED)
-        self.transport_status.configure(text="Waiting for scan", fg=MUTED)
+        self.transport_status.configure(text="System stopped • press Start", fg=MUTED)
         self.video_border.configure(bg=BORDER)
-        self.set_badge(self.record_badge, "NOT RECORDING", "neutral")
+        self.set_badge(self.record_badge, "SYSTEM STOPPED", "neutral")
         self.update_transport_controls()
+        self.toast("ScanCode stopped.")
+
+    def stop_recording(self):
+        self.stop_system()
 
     def finalize_session(self,s):
         try:
@@ -719,6 +790,39 @@ class ScanCodeApp:
         text=self.history.get(sel[0]);name=text.split()[-1]
         matches=list(self.local_root.rglob(name))
         if matches and os.name=="nt":os.startfile(str(matches[0]))
+
+    def submit_scan_target(self, code):
+        target = self.target_var.get() or "Notepad Test"
+        if target == "BigSeller":
+            return self.submit_bigseller(code)
+        return self.submit_notepad(code)
+
+    def submit_notepad(self, code):
+        pyperclip.copy(code)
+        if Desktop is None or send_keys is None:
+            return self.events.put(("bigseller", f"TEST: copied {code}; UI Automation unavailable."))
+        try:
+            def find_notepad():
+                return [w for w in Desktop(backend="uia").windows()
+                        if "notepad" in (w.window_text() or "").lower() and w.is_visible()]
+
+            wins = find_notepad()
+            if not wins:
+                subprocess.Popen(["notepad.exe"])
+                deadline = time.time() + 4.0
+                while time.time() < deadline and not wins:
+                    time.sleep(.2)
+                    wins = find_notepad()
+            if not wins:
+                return self.events.put(("bigseller", f"TEST: copied {code}; could not open Notepad."))
+
+            win = wins[0]
+            win.set_focus()
+            time.sleep(.08)
+            send_keys("^v{ENTER}", pause=.03)
+            self.events.put(("bigseller", f"TEST OK: pasted {code} to Notepad."))
+        except Exception as exc:
+            self.events.put(("bigseller", f"TEST: copied {code}; Notepad paste failed: {exc}"))
 
     def open_bigseller(self):
         url=self.bigseller_var.get().strip()
