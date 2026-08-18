@@ -1,0 +1,1 @@
+Build and publish ScanCode v2.0.3 camera stabilization Windows Setup EXE.
