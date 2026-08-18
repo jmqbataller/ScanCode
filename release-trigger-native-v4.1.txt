@@ -1,0 +1,1 @@
+Build and publish ScanCode v4.1.0 with scrollable layout, fixed camera preview, Start/Stop and Pause/Resume controls.
