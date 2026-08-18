@@ -1,1 +1,1 @@
-Build and release ScanCode v4.2.0 warehouse workflow: Start gate, auto paste to Notepad/BigSeller, instant next-parcel video cutover.
+Build and release ScanCode v4.2.0 warehouse workflow: Start gate, auto paste to Notepad/BigSeller, instant next-parcel video cutover. Retry after UI test fix.
