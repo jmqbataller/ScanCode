@@ -1,0 +1,95 @@
+name: ScanCode v3 Stable Runtime Build
+
+on:
+  push:
+    paths:
+      - 'release-trigger-v3.0.0.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-test-release:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply v3 stable rebuild
+        shell: pwsh
+        run: python tools/apply-v3-stable-rebuild.py
+
+      - name: Static QA before dependencies
+        shell: pwsh
+        run: node qa/qa.js
+
+      - name: Commit stable source
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add main.js src/renderer.js src/index.html package.json qa/qa.js
+          git commit -m "Rebuild ScanCode runtime core v3.0.0"
+          git push
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned dependencies
+        shell: pwsh
+        run: npm install --no-audit --no-fund
+
+      - name: Static QA after dependencies
+        shell: pwsh
+        run: node qa/qa.js
+
+      - name: Runtime smoke test - fake webcam + recording save
+        shell: pwsh
+        timeout-minutes: 3
+        run: |
+          Remove-Item SMOKE_RUNTIME_OK.txt,SMOKE_RUNTIME_FAIL.txt -Force -ErrorAction SilentlyContinue
+          npm run smoke
+          if (-not (Test-Path SMOKE_RUNTIME_OK.txt)) {
+            if (Test-Path SMOKE_RUNTIME_FAIL.txt) { Get-Content SMOKE_RUNTIME_FAIL.txt }
+            throw 'Runtime smoke test did not produce PASS marker.'
+          }
+          Get-Content SMOKE_RUNTIME_OK.txt
+
+      - name: Build Windows Setup EXE
+        shell: pwsh
+        run: npm run dist:setup
+
+      - name: Verify Setup EXE
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist -Filter 'ScanCode-Setup-3.0.0-x64.exe' | Select-Object -First 1
+          if (-not $setup) { throw 'ScanCode v3 Setup EXE not generated.' }
+          Write-Host "Installer: $($setup.FullName)"
+          Write-Host "Size: $([math]::Round($setup.Length/1MB,2)) MB"
+
+      - name: Release v3.0.0
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $setup = (Get-ChildItem dist -Filter 'ScanCode-Setup-3.0.0-x64.exe' | Select-Object -First 1).FullName
+          if (gh release view v3.0.0 --repo $env:GITHUB_REPOSITORY 2>$null) {
+            gh release upload v3.0.0 "$setup" --clobber --repo $env:GITHUB_REPOSITORY
+          } else {
+            gh release create v3.0.0 "$setup" --repo $env:GITHUB_REPOSITORY --target main --title 'ScanCode v3.0.0 — Runtime Tested Stable Rebuild' --notes 'Stable runtime rebuild. Electron 43.4.0, ZXing Browser 0.2.1 and ZXing Library 0.22.0 are pinned. GitHub Windows CI launches the real Electron app with a fake webcam, verifies CAMERA LIVE, records a parcel, saves evidence, and only then publishes the Windows Setup EXE. Author: John Mark Bataller.'
+          }
+
+      - name: Record release success
+        shell: pwsh
+        run: |
+          $stamp=Get-Date -Format o
+          "ScanCode v3.0.0 RUNTIME TEST + BUILD SUCCESS`nAsset: ScanCode-Setup-3.0.0-x64.exe`nReleased: $stamp" | Set-Content V3_RUNTIME_SUCCESS.txt
+          git pull --rebase
+          git add V3_RUNTIME_SUCCESS.txt
+          git commit -m "Record ScanCode v3.0.0 runtime-tested release"
+          git push
