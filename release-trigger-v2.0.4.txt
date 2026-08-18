@@ -1,1 +1,0 @@
-Build and publish ScanCode v2.0.4 using the last known-working v1.3 camera pipeline — retry.
