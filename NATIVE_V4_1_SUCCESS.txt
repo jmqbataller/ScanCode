@@ -1,0 +1,5 @@
+ScanCode v4.1.0 BUILD SUCCESS
+Core test: PASS
+UI smoke test: PASS
+Installer: ScanCode-Setup-4.1.0-x64.exe
+Built: 2026-08-18T01:29:55.2319342+00:00
