@@ -1,20 +1,22 @@
 {
   "name": "scancode",
-  "version": "2.0.4",
-  "description": "ScanCode v2.0.4 camera regression fix restoring the proven ZXing direct webcam pipeline from v1.3 while retaining warehouse evidence, BigSeller bridge, server sync, QA and diagnostics.",
+  "version": "3.0.0",
+  "description": "ScanCode v3 stable runtime rebuild with pinned Electron/ZXing versions, runtime webcam smoke testing, parcel recording, evidence capture, server sync and BigSeller bridge.",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --win nsis portable --publish never",
-    "dist:setup": "electron-builder --win nsis --publish never"
+    "dist:setup": "electron-builder --win nsis --publish never",
+    "smoke": "electron . --smoke-test"
   },
   "dependencies": {
-    "@zxing/browser": "latest"
+    "@zxing/browser": "0.2.1",
+    "@zxing/library": "0.22.0"
   },
   "devDependencies": {
-    "electron": "latest",
-    "electron-builder": "latest"
+    "electron": "43.4.0",
+    "electron-builder": "26.15.3"
   },
   "build": {
     "appId": "com.johnmarkbataller.scancode",

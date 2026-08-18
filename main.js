@@ -7,6 +7,13 @@ const os = require('os');
 const crypto = require('crypto');
 const { pathToFileURL } = require('url');
 
+const SMOKE_TEST = process.argv.includes('--smoke-test');
+if (SMOKE_TEST) {
+  app.commandLine.appendSwitch('use-fake-device-for-media-stream');
+  app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
+  app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+}
+
 
 // Serve the renderer from a secure, standard app origin instead of file://.
 // This keeps relative resources working while giving Chromium a proper secure
@@ -687,9 +694,11 @@ function createWindow() {
     minHeight: 380,
     backgroundColor: '#101214',
     title: 'ScanCode',
+    show: !SMOKE_TEST,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false
+      contextIsolation: false,
+      backgroundThrottling: false
     }
   });
 
@@ -707,9 +716,9 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Known-working camera permission flow from ScanCode v1.3.
-  // Chromium still asks Electron before opening a webcam; allow media for the
-  // local ScanCode renderer.
+  // ScanCode is a local desktop app. Allow only media permission through
+  // Electron's explicit permission handlers so webcam access is deterministic.
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) => permission === 'media');
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     callback(permission === 'media');
   });
@@ -740,6 +749,22 @@ app.on('window-all-closed', () => {
   if (watchdogTimer) clearInterval(watchdogTimer);
   stopNetworkCamera();
   if (process.platform !== 'darwin') app.quit();
+});
+
+ipcMain.handle('smoke:is-enabled', () => SMOKE_TEST);
+ipcMain.handle('smoke:pass', async (event, payload = {}) => {
+  if (!SMOKE_TEST) return { ok:false };
+  const out = path.join(process.cwd(), 'SMOKE_RUNTIME_OK.txt');
+  fs.writeFileSync(out, `PASS\n${new Date().toISOString()}\n${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+  setTimeout(() => app.exit(0), 150);
+  return { ok:true, path:out };
+});
+ipcMain.handle('smoke:fail', async (event, message) => {
+  if (!SMOKE_TEST) return { ok:false };
+  const out = path.join(process.cwd(), 'SMOKE_RUNTIME_FAIL.txt');
+  fs.writeFileSync(out, `FAIL\n${new Date().toISOString()}\n${String(message || 'Unknown smoke-test failure')}\n`, 'utf8');
+  setTimeout(() => app.exit(1), 150);
+  return { ok:true, path:out };
 });
 
 ipcMain.handle('camera:system-status', () => {
