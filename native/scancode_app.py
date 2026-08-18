@@ -39,7 +39,7 @@ from scancode_core import (
     zoom_crop,
 )
 
-APP_VERSION = "4.0.0"
+APP_VERSION = "4.1.0"
 APP_NAME = "ScanCode"
 RED = "#d51f2a"
 DARK_RED = "#8f151c"
@@ -67,11 +67,11 @@ def documents_root() -> Path:
 
 
 class ScanCodeApp:
-    def __init__(self, root: tk.Tk):
+    def __init__(self, root: tk.Tk, start_services: bool = True):
         self.root = root
         self.root.title(f"ScanCode {APP_VERSION} — John Mark Bataller")
         self.root.geometry("1320x820")
-        self.root.minsize(680, 480)
+        self.root.minsize(760, 520)
         self.root.configure(bg=BG)
 
         self.settings_path = app_data_dir() / "settings.json"
@@ -94,7 +94,6 @@ class ScanCodeApp:
         self.sync_stop = threading.Event()
         self.sync_thread = None
         self.preview_photo = None
-        self.compact_auto = False
 
         recovered = recover_recordings(self.local_root)
         self.build_style()
@@ -102,17 +101,19 @@ class ScanCodeApp:
         self.apply_settings_to_ui()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.root.bind("<Configure>", self.on_resize)
-        self.root.bind("<F1>", lambda e: self.start_resume())
+        self.root.bind("<F1>", lambda e: self.start_stop())
         self.root.bind("<F2>", lambda e: self.pause_resume())
-        self.root.bind("<F3>", lambda e: self.stop_recording())
 
         if recovered:
             self.toast(f"Recovered {len(recovered)} interrupted video(s).")
 
-        self.start_camera()
-        self.start_sync_worker()
-        self.root.after(25, self.ui_tick)
-        self.root.after(150, self.event_tick)
+        if start_services:
+            self.start_camera()
+            self.start_sync_worker()
+            self.root.after(25, self.ui_tick)
+            self.root.after(150, self.event_tick)
+        else:
+            self.root.after_idle(self._reflow_layout)
 
     def defaults(self):
         return {
@@ -197,6 +198,7 @@ class ScanCodeApp:
     def build_ui(self):
         top = tk.Frame(self.root, bg=PANEL, height=78, highlightbackground=BORDER, highlightthickness=1)
         top.pack(fill="x")
+        top.pack_propagate(False)
         brand = tk.Frame(top, bg=PANEL); brand.pack(side="left", padx=22, pady=14)
         self.label(brand, "WAREHOUSE UTILITY", 8, True, MUTED).pack(anchor="w")
         title_row = tk.Frame(brand, bg=PANEL); title_row.pack(anchor="w")
@@ -209,14 +211,32 @@ class ScanCodeApp:
         self.server_badge = self.make_badge(badges, "SERVER NOT SET")
         self.record_badge = self.make_badge(badges, "NOT RECORDING")
 
-        self.main = tk.Frame(self.root, bg=BG)
-        self.main.pack(fill="both", expand=True, padx=12, pady=12)
+        # The entire workspace below the top bar is one vertically scrollable canvas.
+        # This prevents the camera preview from pushing settings/history off-screen.
+        shell = tk.Frame(self.root, bg=BG)
+        shell.pack(fill="both", expand=True)
+        self.body_canvas = tk.Canvas(shell, bg=BG, highlightthickness=0, bd=0)
+        self.body_scroll = ttk.Scrollbar(shell, orient="vertical", command=self.body_canvas.yview)
+        self.body_canvas.configure(yscrollcommand=self.body_scroll.set)
+        self.body_scroll.pack(side="right", fill="y")
+        self.body_canvas.pack(side="left", fill="both", expand=True)
+
+        self.content = tk.Frame(self.body_canvas, bg=BG)
+        self.content_window = self.body_canvas.create_window((0, 0), window=self.content, anchor="nw")
+        self.content.grid_columnconfigure(0, weight=1)
+        self.content.bind("<Configure>", self._on_content_configure)
+        self.body_canvas.bind("<Configure>", self._on_canvas_configure)
+        self.root.bind_all("<MouseWheel>", self._on_mousewheel)
+
+        self.main = tk.Frame(self.content, bg=BG)
+        self.main.grid(row=0, column=0, sticky="nsew", padx=12, pady=(12,0))
+        self.main.grid_columnconfigure(0, weight=1)
 
         self.left = tk.Frame(self.main, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
-        self.left.pack(side="left", fill="both", expand=True)
+        self.left.grid(row=0, column=0, sticky="nsew")
         self.side = tk.Frame(self.main, bg=BG, width=330)
-        self.side.pack(side="right", fill="y", padx=(12,0))
-        self.side.pack_propagate(False)
+        self.side.grid(row=0, column=1, sticky="ns", padx=(12,0))
+        self.side.grid_propagate(False)
 
         controls = tk.Frame(self.left, bg=PANEL); controls.pack(fill="x", padx=16, pady=14)
         self.label(controls, "Live Camera", 13, True).grid(row=0, column=0, sticky="w", columnspan=4)
@@ -236,17 +256,22 @@ class ScanCodeApp:
         self.button(controls, "Restart camera", self.restart_camera).grid(row=2, column=3, sticky="ew")
         controls.columnconfigure(0, weight=1); controls.columnconfigure(2, weight=2)
 
-        self.video_border = tk.Frame(self.left, bg=BORDER, padx=2, pady=2)
-        self.video_border.pack(fill="both", expand=True, padx=8)
+        # Fixed responsive preview box. pack_propagate(False) is the key: the
+        # ImageTk frame can no longer grow the whole application vertically.
+        self.video_border = tk.Frame(self.left, bg=BORDER, height=440, padx=2, pady=2)
+        self.video_border.pack(fill="x", padx=8)
+        self.video_border.pack_propagate(False)
         self.video_label = tk.Label(self.video_border, bg="#000000", fg=TEXT, text="Starting native camera…", font=("Segoe UI", 12, "bold"))
         self.video_label.pack(fill="both", expand=True)
 
         transport = tk.Frame(self.left, bg=PANEL); transport.pack(fill="x", padx=16, pady=10)
-        self.button(transport, "Start / Resume", self.start_resume, True).pack(side="left", padx=(0,8))
-        self.button(transport, "Pause", self.pause_resume).pack(side="left", padx=(0,8))
-        self.button(transport, "Stop", self.stop_recording, True).pack(side="left")
+        self.start_stop_btn = self.button(transport, "Start", self.start_stop, True)
+        self.start_stop_btn.pack(side="left", padx=(0,8))
+        self.pause_resume_btn = self.button(transport, "Pause", self.pause_resume)
+        self.pause_resume_btn.pack(side="left")
         self.transport_status = self.label(transport, "Waiting for scan", 9, True, MUTED)
         self.transport_status.pack(side="right")
+        self.update_transport_controls()
 
         manual = tk.Frame(self.left, bg=PANEL); manual.pack(fill="x", padx=16, pady=(0,14))
         self.manual_var = tk.StringVar()
@@ -257,8 +282,56 @@ class ScanCodeApp:
 
         self.build_side()
         self.build_history_search()
-
         self.toast_label = tk.Label(self.root, text="", bg="#1d1d22", fg=TEXT, padx=14, pady=8, font=("Segoe UI",9,"bold"))
+
+        self.root.after_idle(self._reflow_layout)
+
+    def _on_content_configure(self, event=None):
+        self.body_canvas.configure(scrollregion=self.body_canvas.bbox("all"))
+
+    def _on_canvas_configure(self, event):
+        self.body_canvas.itemconfigure(self.content_window, width=max(1, event.width))
+        self.root.after_idle(self._reflow_layout)
+
+    def _on_mousewheel(self, event):
+        try:
+            delta = -1 if event.delta > 0 else 1
+            self.body_canvas.yview_scroll(delta * 3, "units")
+        except Exception:
+            pass
+
+    def _reflow_layout(self):
+        if not hasattr(self, "main"):
+            return
+        width = max(1, self.body_canvas.winfo_width())
+        narrow = width < 980
+
+        if narrow:
+            self.side.grid_configure(row=1, column=0, sticky="ew", padx=0, pady=(12,0))
+            self.side.configure(width=1)
+            self.side.grid_propagate(True)
+            self.main.grid_columnconfigure(1, weight=0, minsize=0)
+            if hasattr(self, "history_panel"):
+                self.history_panel.grid_configure(row=0, column=0, sticky="nsew", padx=0, pady=(0,10))
+                self.search_panel.grid_configure(row=1, column=0, sticky="nsew", padx=0)
+                self.bottom.grid_columnconfigure(0, weight=1)
+                self.bottom.grid_columnconfigure(1, weight=0, minsize=0)
+        else:
+            self.side.grid_configure(row=0, column=1, sticky="ns", padx=(12,0), pady=0)
+            self.side.configure(width=330)
+            self.side.grid_propagate(False)
+            self.main.grid_columnconfigure(1, weight=0, minsize=330)
+            if hasattr(self, "history_panel"):
+                self.history_panel.grid_configure(row=0, column=0, sticky="nsew", padx=(0,10), pady=0)
+                self.search_panel.grid_configure(row=0, column=1, sticky="nsew", padx=0, pady=0)
+                self.bottom.grid_columnconfigure(0, weight=1)
+                self.bottom.grid_columnconfigure(1, weight=1, minsize=360)
+
+        # Keep camera preview usable but bounded. It will never expand beyond 500px.
+        left_width = self.left.winfo_width() if self.left.winfo_width() > 100 else max(640, width - (360 if not narrow else 24))
+        preview_h = int(max(280, min(500, left_width * 9 / 16)))
+        self.video_border.configure(height=preview_h)
+        self._on_content_configure()
 
     def make_badge(self, parent, text):
         l = tk.Label(parent, text=text, bg=PANEL2, fg=MUTED, padx=10, pady=7, font=("Segoe UI",8,"bold"))
@@ -326,22 +399,29 @@ class ScanCodeApp:
         self.button(self.side, "End-of-shift verification", self.end_shift, True).pack(fill="x")
 
     def build_history_search(self):
-        bottom = tk.Frame(self.root, bg=BG)
-        bottom.pack(fill="x", padx=12, pady=(0,12))
+        bottom = tk.Frame(self.content, bg=BG)
+        bottom.grid(row=1, column=0, sticky="ew", padx=12, pady=12)
         self.bottom = bottom
+        bottom.grid_columnconfigure(0, weight=1)
+        bottom.grid_columnconfigure(1, weight=1, minsize=360)
+
         hist = tk.Frame(bottom, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
-        hist.pack(side="left", fill="both", expand=True)
+        hist.grid(row=0, column=0, sticky="nsew", padx=(0,10))
+        self.history_panel = hist
         self.label(hist, "Session History", 11, True).pack(anchor="w", padx=12, pady=(8,4))
-        self.history = tk.Listbox(hist, bg="#0c0c0f", fg=TEXT, selectbackground=RED, relief="flat", height=5)
+        self.history = tk.Listbox(hist, bg="#0c0c0f", fg=TEXT, selectbackground=RED, relief="flat", height=7)
         self.history.pack(fill="both", expand=True, padx=10, pady=(0,10))
         self.history.bind("<Double-Button-1>", lambda e: self.open_history_item())
-        search = tk.Frame(bottom, bg=PANEL, highlightbackground=BORDER, highlightthickness=1, width=430)
-        search.pack(side="right", fill="both", padx=(10,0)); search.pack_propagate(False)
+
+        search = tk.Frame(bottom, bg=PANEL, highlightbackground=BORDER, highlightthickness=1)
+        search.grid(row=0, column=1, sticky="nsew")
+        self.search_panel = search
         self.label(search, "Server Parcel Search", 11, True).pack(anchor="w", padx=12, pady=(8,4))
         sr = tk.Frame(search, bg=PANEL); sr.pack(fill="x", padx=10)
-        self.search_var = tk.StringVar(); tk.Entry(sr, textvariable=self.search_var, bg=PANEL2, fg=TEXT, insertbackground=TEXT, relief="flat").pack(side="left", fill="x", expand=True, ipady=5)
+        self.search_var = tk.StringVar()
+        tk.Entry(sr, textvariable=self.search_var, bg=PANEL2, fg=TEXT, insertbackground=TEXT, relief="flat").pack(side="left", fill="x", expand=True, ipady=5)
         self.button(sr, "Search", self.search_server, True).pack(side="left", padx=(6,0))
-        self.search_results = tk.Listbox(search, bg="#0c0c0f", fg=TEXT, selectbackground=RED, relief="flat", height=5)
+        self.search_results = tk.Listbox(search, bg="#0c0c0f", fg=TEXT, selectbackground=RED, relief="flat", height=7)
         self.search_results.pack(fill="both", expand=True, padx=10, pady=8)
         self.search_results.bind("<Double-Button-1>", lambda e: self.open_search_item())
         self.search_paths = []
@@ -487,7 +567,7 @@ class ScanCodeApp:
             if old:
                 old.stop_at=time.time()+int(self.overlap_var.get() or 900)/1000.0;self.ending_sessions.append(old)
             self.current_session=new
-        self.current_code.configure(text=code);self.detail_status.configure(text="RECORDING",fg=RED);self.transport_status.configure(text=f"Recording • {code}",fg=TEXT);self.video_border.configure(bg=RED);self.set_badge(self.record_badge,"● RECORDING","bad")
+        self.current_code.configure(text=code);self.detail_status.configure(text="RECORDING",fg=RED);self.transport_status.configure(text=f"Recording • {code}",fg=TEXT);self.video_border.configure(bg=RED);self.set_badge(self.record_badge,"● RECORDING","bad");self.update_transport_controls()
         if self.sound_var.get() and winsound:
             threading.Thread(target=lambda:(winsound.Beep(880,70),winsound.Beep(1180,80)),daemon=True).start()
         if self.bigseller_auto_var.get():threading.Thread(target=self.submit_bigseller,args=(code,),daemon=True).start()
@@ -496,23 +576,58 @@ class ScanCodeApp:
         code=self.manual_var.get().strip()
         if code:self.manual_var.set("");self.accept_scan(code)
 
-    def start_resume(self):
-        if self.current_session:
-            self.current_session.paused=False;self.set_badge(self.record_badge,"● RECORDING","bad");self.transport_status.configure(text=f"Recording • {self.current_session.code}")
+    def update_transport_controls(self):
+        if not hasattr(self, "start_stop_btn"):
+            return
+        session = self.current_session
+        if session:
+            self.start_stop_btn.configure(text="Stop", bg=RED, activebackground=DARK_RED, state="normal")
+            self.pause_resume_btn.configure(
+                text="Resume" if session.paused else "Pause",
+                state="normal",
+                bg=PANEL2,
+                activebackground="#24242b",
+            )
         else:
-            code=self.manual_var.get().strip() or f"MANUAL-{int(time.time())}";self.accept_scan(code)
+            self.start_stop_btn.configure(text="Start", bg=RED, activebackground=DARK_RED, state="normal")
+            self.pause_resume_btn.configure(text="Pause", state="disabled", disabledforeground=MUTED)
+
+    def start_stop(self):
+        if self.current_session:
+            return self.stop_recording()
+        code = self.manual_var.get().strip() or f"MANUAL-{int(time.time())}"
+        self.accept_scan(code)
+
+    # Backwards-compatible alias for older internal calls / shortcuts.
+    def start_resume(self):
+        self.start_stop()
 
     def pause_resume(self):
-        if not self.current_session:return self.toast("No active recording.")
-        self.current_session.paused=not self.current_session.paused
-        if self.current_session.paused:self.set_badge(self.record_badge,"PAUSED","warn");self.transport_status.configure(text=f"Paused • {self.current_session.code}")
-        else:self.set_badge(self.record_badge,"● RECORDING","bad");self.transport_status.configure(text=f"Recording • {self.current_session.code}")
+        if not self.current_session:
+            return self.toast("No active recording.")
+        self.current_session.paused = not self.current_session.paused
+        if self.current_session.paused:
+            self.set_badge(self.record_badge, "PAUSED", "warn")
+            self.transport_status.configure(text=f"Paused • {self.current_session.code}", fg=AMBER)
+        else:
+            self.set_badge(self.record_badge, "● RECORDING", "bad")
+            self.transport_status.configure(text=f"Recording • {self.current_session.code}", fg=TEXT)
+        self.update_transport_controls()
 
     def stop_recording(self):
         with self.sessions_lock:
-            if not self.current_session:return self.toast("No active recording.")
-            s=self.current_session;self.current_session=None;s.stop_at=time.time();self.ending_sessions.append(s)
-        self.current_code.configure(text="Waiting for scan");self.detail_status.configure(text="IDLE",fg=MUTED);self.transport_status.configure(text="Waiting for scan",fg=MUTED);self.video_border.configure(bg=BORDER);self.set_badge(self.record_badge,"NOT RECORDING","neutral")
+            if not self.current_session:
+                return self.toast("No active recording.")
+            s = self.current_session
+            self.current_session = None
+            s.stop_at = time.time()
+            self.ending_sessions.append(s)
+        self.current_code.configure(text="Waiting for scan")
+        self.detail_status.configure(text="IDLE", fg=MUTED)
+        self.transport_status.configure(text="Waiting for scan", fg=MUTED)
+        self.video_border.configure(bg=BORDER)
+        self.set_badge(self.record_badge, "NOT RECORDING", "neutral")
+        self.update_transport_controls()
 
     def finalize_session(self,s):
         try:
@@ -645,12 +760,14 @@ class ScanCodeApp:
         except Exception:pass
 
     def on_resize(self,event):
-        if event.widget is not self.root:return
-        small=event.width<900
-        if small and not self.compact_auto:
-            self.side.pack_forget();self.bottom.pack_forget();self.compact_auto=True
-        elif not small and self.compact_auto:
-            self.side.pack(side="right",fill="y",padx=(12,0));self.bottom.pack(fill="x",padx=12,pady=(0,12));self.compact_auto=False
+        if event.widget is not self.root:
+            return
+        if getattr(self, "_resize_after", None):
+            try:
+                self.root.after_cancel(self._resize_after)
+            except Exception:
+                pass
+        self._resize_after = self.root.after(80, self._reflow_layout)
 
     def toast(self,text):
         self.toast_label.configure(text=text);self.toast_label.place(relx=.5,rely=.94,anchor="center");self.root.after(2800,self.toast_label.place_forget)
