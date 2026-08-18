@@ -1,0 +1,1 @@
+Build ScanCode v4.0.0 native Windows installer and portable EXE.
