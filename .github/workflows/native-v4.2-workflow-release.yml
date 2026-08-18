@@ -1,0 +1,156 @@
+name: ScanCode v4.2 Warehouse Workflow
+
+on:
+  push:
+    paths:
+      - 'release-trigger-native-v4.2.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test-build-release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply v4.2 warehouse workflow
+        shell: pwsh
+        run: python tools/apply-v4.2-workflow.py
+
+      - name: Install native dependencies
+        shell: pwsh
+        run: python -m pip install --upgrade pip && pip install -r native/requirements.txt
+
+      - name: Syntax check
+        shell: pwsh
+        run: |
+          python -m py_compile native/scancode_core.py
+          python -m py_compile native/scancode_app.py
+          python -m py_compile native/test_native_core.py
+          python -m py_compile native/test_ui_layout.py
+          python -m py_compile native/test_workflow_v42.py
+
+      - name: Native core regression test
+        shell: pwsh
+        run: |
+          Push-Location native
+          python test_native_core.py
+          Pop-Location
+
+      - name: UI layout smoke test
+        shell: pwsh
+        run: |
+          Push-Location native
+          python test_ui_layout.py
+          Pop-Location
+
+      - name: Warehouse sequence test
+        shell: pwsh
+        run: |
+          Push-Location native
+          python test_workflow_v42.py
+          Pop-Location
+
+      - name: Commit v4.2 source
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add native/scancode_app.py native/test_workflow_v42.py
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "Implement Start-gated parcel workflow and auto paste (v4.2.0)"
+            git push
+          }
+
+      - name: Build portable native EXE
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed `
+            --name ScanCode `
+            --collect-all zxingcpp `
+            --collect-all cv2 `
+            --hidden-import PIL._tkinter_finder `
+            --distpath dist `
+            --workpath build-native `
+            --specpath build-native `
+            native/scancode_app.py
+          if (-not (Test-Path dist/ScanCode.exe)) { throw 'Native ScanCode.exe was not generated.' }
+
+      - name: Install Inno Setup if needed
+        shell: pwsh
+        run: |
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup compiler unavailable.' }
+
+      - name: Create Windows installer
+        shell: pwsh
+        run: |
+          @'
+          [Setup]
+          AppId={{A614B34B-7133-4B78-B0EC-50E0FA642D04}
+          AppName=ScanCode
+          AppVersion=4.2.0
+          AppPublisher=John Mark Bataller
+          VersionInfoCompany=John Mark Bataller
+          VersionInfoDescription=ScanCode Warehouse Parcel Scanner
+          VersionInfoVersion=4.2.0.0
+          DefaultDirName={autopf}\ScanCode
+          DefaultGroupName=ScanCode
+          OutputDir=dist
+          OutputBaseFilename=ScanCode-Setup-4.2.0-x64
+          Compression=lzma2/ultra64
+          SolidCompression=yes
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          PrivilegesRequired=admin
+          UninstallDisplayName=ScanCode — John Mark Bataller
+          WizardStyle=modern
+
+          [Files]
+          Source: "dist\ScanCode.exe"; DestDir: "{app}"; Flags: ignoreversion
+
+          [Icons]
+          Name: "{autoprograms}\ScanCode"; Filename: "{app}\ScanCode.exe"
+          Name: "{autodesktop}\ScanCode"; Filename: "{app}\ScanCode.exe"
+
+          [Run]
+          Filename: "{app}\ScanCode.exe"; Description: "Launch ScanCode"; Flags: nowait postinstall skipifsilent
+          '@ | Set-Content scancode-v4.2.iss
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' scancode-v4.2.iss
+          if (-not (Test-Path dist/ScanCode-Setup-4.2.0-x64.exe)) { throw 'Setup EXE was not generated.' }
+
+      - name: Publish v4.2.0 release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if (gh release view v4.2.0 --repo $env:GITHUB_REPOSITORY 2>$null) {
+            gh release upload v4.2.0 dist/ScanCode-Setup-4.2.0-x64.exe dist/ScanCode.exe --clobber --repo $env:GITHUB_REPOSITORY
+          } else {
+            gh release create v4.2.0 dist/ScanCode-Setup-4.2.0-x64.exe dist/ScanCode.exe `
+              --repo $env:GITHUB_REPOSITORY `
+              --target main `
+              --title 'ScanCode v4.2.0 — Warehouse Scan Workflow' `
+              --notes 'Workflow release: operator must press Start before scanning; accepted QR/barcode automatically pastes + Enter to Notepad Test or submits to BigSeller; first parcel scan starts its evidence video; every next accepted parcel instantly finalizes the previous video and starts a new recording; Pause/Resume pauses both scanning and current recording; Stop finalizes current parcel and disables scanner automation. Native core, UI, and parcel sequence tests must pass before release. Author: John Mark Bataller.'
+          }
+
+      - name: Record success
+        shell: pwsh
+        run: |
+          "ScanCode v4.2.0 BUILD SUCCESS`nNative core: PASS`nUI test: PASS`nWarehouse sequence: PASS`nInstaller: ScanCode-Setup-4.2.0-x64.exe`nBuilt: $(Get-Date -Format o)" | Set-Content NATIVE_V4_2_SUCCESS.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
+          git add NATIVE_V4_2_SUCCESS.txt
+          git commit -m "Record ScanCode v4.2.0 warehouse workflow release"
+          git push
