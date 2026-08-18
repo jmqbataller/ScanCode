@@ -95,3 +95,14 @@ Camera startup was simplified and hardened:
 - A Diagnose button shows OS permission/device information.
 - `CAMERA_DIAGNOSTICS.bat` lists Windows camera devices and can open Camera Privacy settings.
 - The UI displays `v2.0` so the tested build can be confirmed visually.
+
+
+## v2.0.3 — Camera Stabilization
+
+- Renderer is now served from a secure `scancode://app` origin instead of `file://`.
+- Camera permission handlers are restricted to the trusted ScanCode renderer.
+- Fixed a watchdog race that could restart/cancel the webcam while it was still opening.
+- Camera startup no longer stacks redundant default-camera requests after a timeout/busy error.
+- Camera request timeout cleanup was hardened.
+- Failed camera startup pauses automatic watchdog retries for 30 seconds; manual Restart remains available immediately.
+- Diagnose now shows Windows camera access, camera enumeration, secure-context state, renderer origin, and Electron version.

@@ -59,6 +59,10 @@ check('Installer script exists', fs.existsSync(path.join(root,'INSTALL_SCANCODE.
 check('Author metadata', pkg.author==='John Mark Bataller' && pkg.build?.extraMetadata?.author==='John Mark Bataller');
 check('Electron build config has NSIS + portable', JSON.stringify(pkg.build?.win?.target||[]).includes('nsis') && JSON.stringify(pkg.build?.win?.target||[]).includes('portable'));
 
+check('Secure ScanCode renderer origin', main.includes('registerSchemesAsPrivileged') && main.includes("scancode://app/index.html") && main.includes("secure: true"));
+check('Camera watchdog cannot interrupt startup', renderer.includes('watchdogRestarting || cameraStarting') && renderer.includes('cameraLastFailureAt'));
+check('Camera request timeout is self-cleaning', renderer.includes('clearTimeout(timer)') && renderer.includes('getUserMediaWithTimeout'));
+
 // Environment-dependent features
 result('Camera hardware + Windows camera permission','NEEDS SETUP','Must be verified on each warehouse PC/camera.');
 result('BigSeller exact field/result extraction','NEEDS SETUP','Needs the exact BigSeller warehouse page URL/DOM; current bridge is guarded until URL is set.');

@@ -1,7 +1,7 @@
 {
   "name": "scancode",
-  "version": "2.0.2",
-  "description": "ScanCode Camera Rescue deployment build with robust uninstall cleanup, orphaned Installed Apps repair, complete Electron media permission handling, direct default-camera startup, timeouts, diagnostics, warehouse evidence recording, and server sync.",
+  "version": "2.0.3",
+  "description": "ScanCode v2.0.3 camera stabilization build using a secure Electron app origin, guarded camera watchdog startup, robust webcam timeouts, warehouse evidence recording, BigSeller bridge, and server sync.",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -49,10 +49,10 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "ScanCode",
-      "uninstallDisplayName": "ScanCode — John Mark Bataller",
+      "uninstallDisplayName": "ScanCode \u2014 John Mark Bataller",
       "artifactName": "ScanCode-Setup-${version}-${arch}.${ext}"
     },
-    "copyright": "Copyright © 2026 John Mark Bataller",
+    "copyright": "Copyright \u00a9 2026 John Mark Bataller",
     "asar": true,
     "compression": "maximum",
     "electronLanguages": [

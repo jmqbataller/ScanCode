@@ -113,6 +113,8 @@ let lastVideoTime = -1;
 let lastVideoAdvancedAt = Date.now();
 let watchdogRestarting = false;
 let lastPhoneFrameAt = 0;
+let cameraStarting = false;
+let cameraLastFailureAt = 0;
 
 const SCAN_DEBOUNCE_MS = 1400;
 
@@ -910,23 +912,32 @@ async function promiseWithTimeout(promise, ms, label = 'Operation') {
   }
 }
 
-async function getUserMediaWithTimeout(constraints, ms = 8000) {
-  let timedOut = false;
-  const original = navigator.mediaDevices.getUserMedia(constraints);
-  const timeout = new Promise((_, reject) => setTimeout(() => {
-    timedOut = true;
-    const err = new Error('Camera did not respond within 8 seconds.');
-    err.name = 'TimeoutError';
-    reject(err);
-  }, ms));
+async function getUserMediaWithTimeout(constraints, ms = 7000) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      const err = new Error(`Camera did not respond within ${Math.round(ms / 1000)} seconds.`);
+      err.name = 'TimeoutError';
+      reject(err);
+    }, ms);
 
-  original.then(stream => {
-    if (timedOut) {
-      try { stream.getTracks().forEach(t => t.stop()); } catch {}
-    }
-  }).catch(() => {});
-
-  return Promise.race([original, timeout]);
+    navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+      if (settled) {
+        try { stream.getTracks().forEach(track => track.stop()); } catch {}
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      resolve(stream);
+    }).catch((err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
 }
 
 async function waitForVideoReady(video, ms = 6000) {
@@ -1105,9 +1116,12 @@ async function startSelectedCamera() {
 async function startCamera(requestedDeviceId = '') {
   currentCameraMode = 'local';
   stopPhoneMode();
-  stopLocalCamera();
 
   const token = ++cameraStartToken;
+  cameraStarting = true;
+  cameraLastFailureAt = 0;
+  stopLocalCamera();
+
   els.video.style.display = 'block';
   els.phoneFrame.style.display = 'none';
   els.cameraMessage.textContent = requestedDeviceId ? 'Opening selected camera…' : 'Opening default / built-in camera…';
@@ -1117,22 +1131,16 @@ async function startCamera(requestedDeviceId = '') {
   codeReader = new BrowserMultiFormatReader();
   canvasCodeReader = new BrowserMultiFormatReader();
 
-  // Startup deliberately avoids enumerateDevices() and advanced constraints.
-  // First ask Chromium for the system default camera using the simplest
-  // possible getUserMedia request. Device enumeration only happens AFTER a
-  // working stream exists and permission has already been granted.
-  const attempts = [];
-  if (requestedDeviceId) {
-    attempts.push({
-      name: 'selected camera',
-      constraints: { video: { deviceId: { exact: requestedDeviceId } }, audio: false }
-    });
-  }
-  attempts.push({ name:'default camera', constraints:{ video:true, audio:false } });
-  attempts.push({
-    name:'default 720p camera',
-    constraints:{ video:{ width:{ideal:1280}, height:{ideal:720} }, audio:false }
-  });
+  // Do not stack multiple fallback requests for the same physical camera.
+  // A selected device may fall back once to the Windows default camera.
+  const attempts = requestedDeviceId
+    ? [
+        { name: 'selected camera', constraints: { video: { deviceId: { exact: requestedDeviceId } }, audio: false } },
+        { name: 'default camera', constraints: { video: true, audio: false } }
+      ]
+    : [
+        { name: 'default camera', constraints: { video: true, audio: false } }
+      ];
 
   let stream = null;
   let lastError = null;
@@ -1142,28 +1150,37 @@ async function startCamera(requestedDeviceId = '') {
       if (token !== cameraStartToken) return;
       try {
         els.cameraMessage.textContent = `Trying ${attempt.name}…`;
-        stream = await getUserMediaWithTimeout(attempt.constraints, 8000);
+        stream = await getUserMediaWithTimeout(attempt.constraints, 7000);
         if (stream) break;
       } catch (err) {
         console.warn(`Camera attempt failed: ${attempt.name}`, err);
         lastError = err;
-        // Permission denial is not helped by trying more constraints.
-        if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') break;
-        await sleep(180);
+
+        // Permission denial, camera-busy, or timeout will not be fixed by
+        // immediately issuing another request. Avoid camera request loops.
+        if (['NotAllowedError', 'PermissionDeniedError', 'NotReadableError', 'TrackStartError', 'TimeoutError'].includes(err?.name)) {
+          break;
+        }
+        await sleep(250);
       }
     }
 
     if (!stream) throw lastError || new Error('No camera stream was returned.');
 
     if (token !== cameraStartToken) {
-      stream.getTracks().forEach(t => t.stop());
+      stream.getTracks().forEach(track => track.stop());
       return;
     }
 
     localCameraStream = stream;
     els.video.srcObject = stream;
-    await waitForVideoReady(els.video, 6000);
-    await promiseWithTimeout(els.video.play(), 5000, 'Camera playback');
+    els.video.muted = true;
+    els.video.autoplay = true;
+    els.video.playsInline = true;
+
+    const playPromise = els.video.play();
+    await waitForVideoReady(els.video, 5000);
+    await promiseWithTimeout(playPromise, 5000, 'Camera playback');
 
     const track = stream.getVideoTracks()[0];
     if (!track || track.readyState !== 'live') throw new Error('Camera track did not become live.');
@@ -1171,8 +1188,7 @@ async function startCamera(requestedDeviceId = '') {
     const activeDeviceId = track.getSettings?.().deviceId || '';
     const activeLabel = track.label || 'Built-in / Default Camera';
 
-    // Camera is already live at this point. Now it is safe to enumerate labels.
-    await promiseWithTimeout(loadCameraList(activeDeviceId), 3500, 'Camera list').catch(err => {
+    await promiseWithTimeout(loadCameraList(activeDeviceId), 3500, 'Camera list').catch((err) => {
       console.warn('Camera list refresh skipped:', err);
       els.cameraSelect.innerHTML = '';
       const opt = document.createElement('option');
@@ -1184,6 +1200,7 @@ async function startCamera(requestedDeviceId = '') {
     await applyContinuousAutofocus().catch(() => {});
     startLocalZoomScanner();
 
+    cameraLastFailureAt = 0;
     els.cameraMessage.classList.add('hidden');
     badge(els.cameraBadge, 'CAMERA LIVE', 'good');
     lastVideoTime = els.video.currentTime || 0;
@@ -1192,12 +1209,15 @@ async function startCamera(requestedDeviceId = '') {
   } catch (err) {
     console.error('Camera start failed:', err);
     stopLocalCamera();
+    cameraLastFailureAt = Date.now();
 
     const sys = await ipcRenderer.invoke('camera:system-status').catch(() => null);
     const name = err?.name || '';
     let message = err?.message || 'Camera could not start.';
 
-    if (sys?.cameraAccess === 'denied' || sys?.cameraAccess === 'restricted') {
+    if (!window.isSecureContext) {
+      message = `Camera blocked because the app origin is not secure (${location.origin}). Reinstall the latest ScanCode build.`;
+    } else if (sys?.cameraAccess === 'denied' || sys?.cameraAccess === 'restricted') {
       message = 'Windows camera access is blocked. Enable Camera access and “Let desktop apps access your camera” in Windows Settings.';
     } else if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
       message = 'Camera permission denied. Enable Camera access for desktop apps in Windows Privacy settings.';
@@ -1206,12 +1226,15 @@ async function startCamera(requestedDeviceId = '') {
     } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
       message = 'Windows/Chromium did not report a camera device.';
     } else if (name === 'TimeoutError') {
-      message = 'Camera startup timed out. The camera/driver did not respond. Click Diagnose, then Restart camera.';
+      message = 'Camera startup timed out. The driver did not answer the request. Close other camera apps, then click Restart camera.';
     }
 
     els.cameraMessage.textContent = message;
+    els.cameraMessage.classList.remove('hidden');
     badge(els.cameraBadge, 'CAMERA ERROR', 'bad');
     showToast(message);
+  } finally {
+    if (token === cameraStartToken) cameraStarting = false;
   }
 }
 
@@ -1315,6 +1338,8 @@ async function init() {
     els.cameraMode.value = 'local';
     settings = await ipcRenderer.invoke('settings:update', { cameraMode: 'local' });
     els.cameraSelect.innerHTML = '<option value="">Default / Built-in Camera</option>';
+    // Let the secure renderer finish its first paint before requesting the webcam.
+    await sleep(300);
     await startCamera('');
   }
 
@@ -1348,13 +1373,14 @@ els.diagnoseCameraBtn?.addEventListener('click', async () => {
   } catch (err) {
     deviceText = `Camera enumeration failed: ${err?.message || err}`;
   }
-  const message = `Windows access: ${sys?.cameraAccess || 'unknown'} | ${deviceText} | Electron ${sys?.electron || '?'}`;
+  const message = `Windows access: ${sys?.cameraAccess || 'unknown'} | ${deviceText} | Secure: ${window.isSecureContext ? 'YES' : 'NO'} | Origin: ${location.origin} | Electron ${sys?.electron || '?'}`;
   els.cameraMessage.textContent = message;
   els.cameraMessage.classList.remove('hidden');
   showToast(message);
 });
 
 els.restartCameraBtn.addEventListener('click', async () => {
+  cameraLastFailureAt = 0;
   showToast('Restarting camera…');
   if (els.cameraMode.value === 'local') await startCamera(els.cameraSelect.value || '');
   else await startPhoneMode();
@@ -1369,7 +1395,7 @@ els.cameraSelect.addEventListener('change', async () => {
 els.cameraMode.addEventListener('change', async () => { await saveSettingsFromUi(); await startSelectedCamera(); });
 
 navigator.mediaDevices?.addEventListener?.('devicechange', async () => {
-  if (currentCameraMode !== 'local') return;
+  if (currentCameraMode !== 'local' || cameraStarting) return;
   const activeId = localCameraStream?.getVideoTracks?.()[0]?.getSettings?.().deviceId || els.cameraSelect.value;
   await loadCameraList(activeId);
 });
@@ -1531,7 +1557,8 @@ ipcRenderer.on('recovery:status', (event, status) => {
 });
 
 ipcRenderer.on('watchdog:tick', async () => {
-  if (watchdogRestarting) return;
+  if (watchdogRestarting || cameraStarting) return;
+  if (cameraLastFailureAt && Date.now() - cameraLastFailureAt < 30000) return;
 
   if (currentCameraMode === 'local' && els.video.readyState >= 2) {
     const t = els.video.currentTime;

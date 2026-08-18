@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, session, systemPreferences } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, systemPreferences, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -6,6 +6,23 @@ const https = require('https');
 const os = require('os');
 const crypto = require('crypto');
 const { pathToFileURL } = require('url');
+
+
+// Serve the renderer from a secure, standard app origin instead of file://.
+// This keeps relative resources working while giving Chromium a proper secure
+// origin for media APIs such as navigator.mediaDevices.getUserMedia().
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'scancode',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      codeCache: true
+    }
+  }
+]);
 
 let mainWindow;
 let syncTimer = null;
@@ -637,6 +654,31 @@ function restartWatchdog() {
 
 
 
+
+function registerScanCodeProtocol() {
+  const sourceRoot = path.resolve(__dirname, 'src');
+  protocol.handle('scancode', (request) => {
+    try {
+      const requestUrl = new URL(request.url);
+      let relativePath = decodeURIComponent(requestUrl.pathname || '/');
+      if (relativePath === '/' || relativePath === '') relativePath = '/index.html';
+      relativePath = relativePath.replace(/^[/\\]+/, '');
+
+      const filePath = path.resolve(sourceRoot, relativePath);
+      const allowedRoot = `${sourceRoot}${path.sep}`;
+      if (filePath !== path.join(sourceRoot, 'index.html') && !filePath.startsWith(allowedRoot)) {
+        return new Response('Not found', { status: 404 });
+      }
+      if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+        return new Response('Not found', { status: 404 });
+      }
+      return net.fetch(pathToFileURL(filePath).toString());
+    } catch (err) {
+      return new Response(`ScanCode resource error: ${err.message}`, { status: 500 });
+    }
+  });
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -652,7 +694,7 @@ function createWindow() {
   });
 
   mainWindow.setMenuBarVisibility(false);
-  mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
+  mainWindow.loadURL('scancode://app/index.html');
   mainWindow.webContents.on('did-finish-load', () => {
     setTimeout(() => syncPendingVideos('startup'), 900);
     setTimeout(async () => {
@@ -665,15 +707,25 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Electron requires BOTH permission-check and permission-request handlers
-  // for complete media permission handling. This is especially important for
-  // getUserMedia() on file:// renderer pages.
-  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-    if (permission === 'media') return true;
-    return false;
+  registerScanCodeProtocol();
+  // Permit media only for the trusted ScanCode renderer. The renderer now runs
+  // from the secure scancode://app origin instead of file://.
+  const trustedMediaContents = (webContents) => {
+    try {
+      return Boolean(webContents && (
+        webContents === mainWindow?.webContents ||
+        String(webContents.getURL?.() || '').startsWith('scancode://app')
+      ));
+    } catch {
+      return false;
+    }
+  };
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+    if (permission !== 'media') return false;
+    return String(requestingOrigin || '').startsWith('scancode://app') || trustedMediaContents(webContents);
   });
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
-    callback(permission === 'media');
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    callback(permission === 'media' && trustedMediaContents(webContents));
   });
 
   fs.mkdirSync(localRecordingRoot(), { recursive: true });
