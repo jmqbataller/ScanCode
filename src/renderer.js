@@ -1124,87 +1124,63 @@ async function startCamera(requestedDeviceId = '') {
 
   els.video.style.display = 'block';
   els.phoneFrame.style.display = 'none';
-  els.cameraMessage.textContent = requestedDeviceId ? 'Opening selected camera…' : 'Opening default / built-in camera…';
+  els.cameraMessage.textContent = 'Starting camera…';
   els.cameraMessage.classList.remove('hidden');
   badge(els.cameraBadge, 'CAMERA STARTING', 'warning');
 
   codeReader = new BrowserMultiFormatReader();
   canvasCodeReader = new BrowserMultiFormatReader();
 
-  // Do not stack multiple fallback requests for the same physical camera.
-  // A selected device may fall back once to the Windows default camera.
-  const attempts = requestedDeviceId
-    ? [
-        { name: 'selected camera', constraints: { video: { deviceId: { exact: requestedDeviceId } }, audio: false } },
-        { name: 'default camera', constraints: { video: true, audio: false } }
-      ]
-    : [
-        { name: 'default camera', constraints: { video: true, audio: false } }
-      ];
-
-  let stream = null;
-  let lastError = null;
+  // This is the same camera-opening method used by ScanCode v1.3, which was
+  // confirmed working on the user's built-in HP TrueVision camera. ZXing owns
+  // the single webcam stream and attaches it directly to the existing <video>.
+  const selected = requestedDeviceId || els.cameraSelect.value || '';
+  const constraints = {
+    video: {
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      frameRate: { ideal: 30, max: 30 },
+      ...(selected ? { deviceId: { exact: selected } } : {})
+    },
+    audio: false
+  };
 
   try {
-    for (const attempt of attempts) {
-      if (token !== cameraStartToken) return;
-      try {
-        els.cameraMessage.textContent = `Trying ${attempt.name}…`;
-        stream = await getUserMediaWithTimeout(attempt.constraints, 7000);
-        if (stream) break;
-      } catch (err) {
-        console.warn(`Camera attempt failed: ${attempt.name}`, err);
-        lastError = err;
-
-        // Permission denial, camera-busy, or timeout will not be fixed by
-        // immediately issuing another request. Avoid camera request loops.
-        if (['NotAllowedError', 'PermissionDeniedError', 'NotReadableError', 'TrackStartError', 'TimeoutError'].includes(err?.name)) {
-          break;
-        }
-        await sleep(250);
+    scannerControls = await codeReader.decodeFromConstraints(
+      constraints,
+      els.video,
+      (result, error) => {
+        if (result) processDetectedResult(result, 'camera');
       }
-    }
-
-    if (!stream) throw lastError || new Error('No camera stream was returned.');
+    );
 
     if (token !== cameraStartToken) {
-      stream.getTracks().forEach(track => track.stop());
+      try { scannerControls?.stop(); } catch {}
       return;
     }
 
+    await els.video.play();
+
+    const stream = els.video.srcObject;
+    const track = stream?.getVideoTracks?.()[0];
+    if (!track || track.readyState !== 'live') {
+      throw new Error('Camera opened but no live video track was returned.');
+    }
+
     localCameraStream = stream;
-    els.video.srcObject = stream;
-    els.video.muted = true;
-    els.video.autoplay = true;
-    els.video.playsInline = true;
-
-    const playPromise = els.video.play();
-    await waitForVideoReady(els.video, 5000);
-    await promiseWithTimeout(playPromise, 5000, 'Camera playback');
-
-    const track = stream.getVideoTracks()[0];
-    if (!track || track.readyState !== 'live') throw new Error('Camera track did not become live.');
-
-    const activeDeviceId = track.getSettings?.().deviceId || '';
+    const activeDeviceId = track.getSettings?.().deviceId || selected;
     const activeLabel = track.label || 'Built-in / Default Camera';
 
-    await promiseWithTimeout(loadCameraList(activeDeviceId), 3500, 'Camera list').catch((err) => {
-      console.warn('Camera list refresh skipped:', err);
-      els.cameraSelect.innerHTML = '';
-      const opt = document.createElement('option');
-      opt.value = activeDeviceId;
-      opt.textContent = activeLabel;
-      els.cameraSelect.appendChild(opt);
-    });
+    els.cameraMessage.classList.add('hidden');
+    badge(els.cameraBadge, 'CAMERA LIVE', 'good');
 
+    await loadCameraList(activeDeviceId).catch(() => {});
     await applyContinuousAutofocus().catch(() => {});
     startLocalZoomScanner();
 
-    cameraLastFailureAt = 0;
-    els.cameraMessage.classList.add('hidden');
-    badge(els.cameraBadge, 'CAMERA LIVE', 'good');
     lastVideoTime = els.video.currentTime || 0;
     lastVideoAdvancedAt = Date.now();
+    cameraLastFailureAt = 0;
     showToast(`Camera ready: ${activeLabel}`);
   } catch (err) {
     console.error('Camera start failed:', err);
@@ -1215,21 +1191,17 @@ async function startCamera(requestedDeviceId = '') {
     const name = err?.name || '';
     let message = err?.message || 'Camera could not start.';
 
-    if (!window.isSecureContext) {
-      message = `Camera blocked because the app origin is not secure (${location.origin}). Reinstall the latest ScanCode build.`;
-    } else if (sys?.cameraAccess === 'denied' || sys?.cameraAccess === 'restricted') {
+    if (sys?.cameraAccess === 'denied' || sys?.cameraAccess === 'restricted') {
       message = 'Windows camera access is blocked. Enable Camera access and “Let desktop apps access your camera” in Windows Settings.';
     } else if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
       message = 'Camera permission denied. Enable Camera access for desktop apps in Windows Privacy settings.';
     } else if (name === 'NotReadableError' || name === 'TrackStartError') {
       message = 'Camera is busy/locked. Close Windows Camera, Zoom, Teams, Discord or OBS, then click Restart camera.';
     } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-      message = 'Windows/Chromium did not report a camera device.';
-    } else if (name === 'TimeoutError') {
-      message = 'Camera startup timed out. The driver did not answer the request. Close other camera apps, then click Restart camera.';
+      message = 'No camera was reported by Windows/Chromium.';
     }
 
-    els.cameraMessage.textContent = message;
+    els.cameraMessage.textContent = `CAMERA ERROR — ${message}`;
     els.cameraMessage.classList.remove('hidden');
     badge(els.cameraBadge, 'CAMERA ERROR', 'bad');
     showToast(message);
@@ -1373,7 +1345,7 @@ els.diagnoseCameraBtn?.addEventListener('click', async () => {
   } catch (err) {
     deviceText = `Camera enumeration failed: ${err?.message || err}`;
   }
-  const message = `Windows access: ${sys?.cameraAccess || 'unknown'} | ${deviceText} | Secure: ${window.isSecureContext ? 'YES' : 'NO'} | Origin: ${location.origin} | Electron ${sys?.electron || '?'}`;
+  const message = `Windows access: ${sys?.cameraAccess || 'unknown'} | ${deviceText} | Pipeline: ZXing direct webcam | Electron ${sys?.electron || '?'}`;
   els.cameraMessage.textContent = message;
   els.cameraMessage.classList.remove('hidden');
   showToast(message);

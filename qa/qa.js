@@ -26,11 +26,11 @@ const missingRefs=[...new Set(refs.filter(x=>!ids.includes(x)))];
 check('All renderer element refs exist', missingRefs.length===0, missingRefs.join(', '));
 check('Uninstall button removed from app UI', !html.includes('id="uninstallBtn"') && !renderer.includes('els.uninstallBtn'));
 check('Compact View removed from UI/runtime', !html.includes('compactModeBtn') && !renderer.includes('toggleCompactMode') && !main.includes('window:set-compact'));
-check('Camera device selector has a visible fallback', html.includes('Default / Built-in Camera') && renderer.includes('getUserMediaWithTimeout'));
+check('Camera device selector has a visible fallback', html.includes('Default / Built-in Camera') && renderer.includes('decodeFromConstraints'));
 check('Recording controls wired', ['startVideoBtn','pauseVideoBtn','stopVideoBtn'].every(id=>renderer.includes(`els.${id}`)));
 check('Camera device enumeration is wired', renderer.includes('enumerateDevices') && renderer.includes('loadCameraList'));
 const initBlock = (renderer.match(/async function init\(\) \{[\s\S]*?\n\}/) || [''])[0];
-check('Camera startup avoids temporary probe stream', !initBlock.includes('const probe = await navigator.mediaDevices.getUserMedia') && renderer.includes('localCameraStream') && renderer.includes('getUserMediaWithTimeout'));
+check('Camera startup uses known-working direct ZXing pipeline', !initBlock.includes('const probe = await navigator.mediaDevices.getUserMedia') && renderer.includes('decodeFromConstraints') && renderer.includes('localCameraStream'));
 check('Built-in/USB camera is the default startup path', initBlock.includes("settings.cameraMode = 'local'") && initBlock.includes("await startCamera('');"));
 check('F1/F2/F3 recording shortcuts wired', ['F1','F2','F3'].every(k=>renderer.includes(`event.key === '${k}'`)) && !renderer.includes("event.key === 'F4'"));
 
@@ -59,9 +59,9 @@ check('Installer script exists', fs.existsSync(path.join(root,'INSTALL_SCANCODE.
 check('Author metadata', pkg.author==='John Mark Bataller' && pkg.build?.extraMetadata?.author==='John Mark Bataller');
 check('Electron build config has NSIS + portable', JSON.stringify(pkg.build?.win?.target||[]).includes('nsis') && JSON.stringify(pkg.build?.win?.target||[]).includes('portable'));
 
-check('Secure ScanCode renderer origin', main.includes('registerSchemesAsPrivileged') && main.includes("scancode://app/index.html") && main.includes("secure: true"));
+check('Known-working local renderer camera path', main.includes('mainWindow.loadFile') && renderer.includes('decodeFromConstraints'));
 check('Camera watchdog cannot interrupt startup', renderer.includes('watchdogRestarting || cameraStarting') && renderer.includes('cameraLastFailureAt'));
-check('Camera request timeout is self-cleaning', renderer.includes('clearTimeout(timer)') && renderer.includes('getUserMediaWithTimeout'));
+check('Camera stream is opened once by ZXing', renderer.includes('decodeFromConstraints') && !renderer.includes('stream = await getUserMediaWithTimeout(attempt.constraints'));
 
 // Environment-dependent features
 result('Camera hardware + Windows camera permission','NEEDS SETUP','Must be verified on each warehouse PC/camera.');
@@ -76,4 +76,4 @@ console.log('='.repeat(72));
 console.log(`PASS: ${pass}   FAIL: ${fail}   NEEDS SETUP: ${setup}`);
 process.exitCode=fail?1:0;
 
-check('Complete Electron media permission handling', main.includes('setPermissionCheckHandler') && main.includes('setPermissionRequestHandler'));
+check('Electron media permission handler present', main.includes('setPermissionRequestHandler'));

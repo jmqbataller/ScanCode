@@ -694,7 +694,7 @@ function createWindow() {
   });
 
   mainWindow.setMenuBarVisibility(false);
-  mainWindow.loadURL('scancode://app/index.html');
+  mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'));
   mainWindow.webContents.on('did-finish-load', () => {
     setTimeout(() => syncPendingVideos('startup'), 900);
     setTimeout(async () => {
@@ -707,25 +707,11 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  registerScanCodeProtocol();
-  // Permit media only for the trusted ScanCode renderer. The renderer now runs
-  // from the secure scancode://app origin instead of file://.
-  const trustedMediaContents = (webContents) => {
-    try {
-      return Boolean(webContents && (
-        webContents === mainWindow?.webContents ||
-        String(webContents.getURL?.() || '').startsWith('scancode://app')
-      ));
-    } catch {
-      return false;
-    }
-  };
-  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
-    if (permission !== 'media') return false;
-    return String(requestingOrigin || '').startsWith('scancode://app') || trustedMediaContents(webContents);
-  });
+  // Known-working camera permission flow from ScanCode v1.3.
+  // Chromium still asks Electron before opening a webcam; allow media for the
+  // local ScanCode renderer.
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    callback(permission === 'media' && trustedMediaContents(webContents));
+    callback(permission === 'media');
   });
 
   fs.mkdirSync(localRecordingRoot(), { recursive: true });

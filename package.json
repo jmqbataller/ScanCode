@@ -1,7 +1,7 @@
 {
   "name": "scancode",
-  "version": "2.0.3",
-  "description": "ScanCode v2.0.3 camera stabilization build using a secure Electron app origin, guarded camera watchdog startup, robust webcam timeouts, warehouse evidence recording, BigSeller bridge, and server sync.",
+  "version": "2.0.4",
+  "description": "ScanCode v2.0.4 camera regression fix restoring the proven ZXing direct webcam pipeline from v1.3 while retaining warehouse evidence, BigSeller bridge, server sync, QA and diagnostics.",
   "main": "main.js",
   "private": true,
   "scripts": {
