@@ -1,6 +1,6 @@
-# ScanCode v4.3.0 — Automatic Camera Startup
+# ScanCode v4.6.0 — Performance + Focus Controls
 
-Warehouse parcel QR/barcode scanner and video evidence recorder.
+Windows warehouse parcel QR/barcode scanner, active-app scan output, and video evidence recorder.
 
 **Author:** John Mark Bataller  
 **Platform:** Windows 10/11 x64  
@@ -10,57 +10,65 @@ Warehouse parcel QR/barcode scanner and video evidence recorder.
 
 Use the GitHub Release installer:
 
-`ScanCode-Setup-4.3.0-x64.exe`
+`ScanCode-Setup-4.6.0-x64.exe`
 
-A portable `ScanCode.exe` is also included in the v4.3.0 release.
+A portable `ScanCode.exe` is also included in the v4.6.0 release.
 
-## v4.3 camera startup behavior
+## v4.6 highlights
 
-- The Setup EXE launches ScanCode after installation.
-- ScanCode automatically starts the PC/USB camera after the Windows/Tk UI is ready.
-- The saved camera is tried first.
-- If that camera index does not work, ScanCode automatically probes Camera 0–5.
-- Each camera is tried through DirectShow, Media Foundation, and Windows Auto backends.
-- A camera is considered live only after a real video frame is received.
-- The detected working camera index is saved for the next launch.
-- The camera worker no longer reads tkinter variables from its background thread, reducing packaged-EXE startup failures.
-- Camera reconnect/retry remains active if the webcam temporarily fails.
+- Lighter progressive decoder to reduce idle CPU usage.
+- QR + Barcode is now the default scan format.
+- Common 1D/2D formats are accepted, including Code128, Code39, EAN, UPC, ITF, Codabar, DataMatrix, PDF417, Aztec and QR.
+- Optional **Enable camera autofocus** control for webcams that support hardware autofocus.
+- **Waybill Focus** control with **Near** and **Far** presets.
+  - Near: wider scan area for a close/large label.
+  - Far: tighter center crop/digital zoom for a smaller/farther label.
+- Manual scanner zoom remains available when Waybill Focus is disabled.
+- Preview refresh is reduced to about 22 FPS to reduce UI/Pillow CPU usage; camera capture and evidence recording remain full-rate.
+- Expensive threshold/upscale recovery runs less often while fast QR/barcode detection still runs every scan cycle.
 
-The **camera preview starts automatically**. The operator still presses **Start** to enable QR/barcode automation and parcel recording, preventing an accidental parcel scan just because the application opened.
+> Autofocus is hardware-dependent. Enabling it requests autofocus through OpenCV; a fixed-focus A4Tech webcam will simply continue operating as a fixed-focus camera.
 
-## Why v4 is different
+## Scan output
 
-The old Electron/Chromium camera pipeline was removed from the production build after repeated webcam regressions. ScanCode v4 uses native Windows/OpenCV camera backends and ZXing-C++ for QR/barcode scanning.
+The default output mode is **Active App**:
 
-## Core features
+1. Open ScanCode and press **Start**.
+2. Focus any textbox/cell/input in Notepad, Excel, a browser, BigSeller, ERP/WMS software, etc.
+3. Show a QR or barcode to the camera.
+4. ScanCode copies the decoded value, pastes it into the active Windows app, and optionally presses Enter.
 
-- Native built-in / USB webcam capture
-- Automatic local camera detection and fallback
-- Phone / network MJPEG camera URL support
+ScanCode blocks accidental paste into its own window.
+
+## Camera behavior
+
+- Camera preview starts automatically after the application UI is ready.
+- Saved camera index is tried first, then Camera 0–5 automatically.
+- DirectShow, Media Foundation and Windows Auto backends are supported.
+- v4.5+ prefers 1920×1080 MJPG at 30 FPS, with 1280×720 fallback.
+- Software enhancement is used by the decoder only; normal preview and evidence video are not over-sharpened.
+- Camera reconnect/retry remains active.
+
+## Core warehouse features
+
 - QR and multi-format barcode scanning
+- Active App paste + optional Enter
+- Dedicated BigSeller mode
 - Scan confirmation and duplicate protection
-- One camera with FAR recording view and NEAR scanner crop
-- Start-gated scanner automation
-- First accepted parcel scan starts evidence recording
-- Next accepted parcel scan finalizes the previous parcel and starts the next recording
+- FAR recording view + scanner/waybill crop
 - Start / Stop and Pause / Resume workflow
-- Scan success sound
-- Date/time, station, operator and parcel-code video watermark
-- QR/barcode-based video filenames
+- Evidence video per parcel
+- Waybill screenshot
+- Date/time, station, operator and parcel-code watermark
 - Daily folders under `Documents\ScanCode\YYYY-MM-DD`
-- Waybill screenshot with automatic bright-label crop
-- Evidence JSON metadata per parcel
-- Failed / exception marking
-- Automatic camera quality status
-- Camera reconnect/watch behavior
-- Server auto-sync with SHA-256 verification before local evidence deletion
-- Server queue status
-- Server parcel/evidence search
+- Evidence JSON metadata
+- Exception marking
+- Camera quality status
+- Server auto-sync with verification
+- Server queue/evidence search
 - End-of-shift verification
 - Optional auto-start with Windows
-- Notepad Test / BigSeller scan-output workflow
-- Responsive small-window mode
-- Red / black UI
+- Responsive UI
 
 ## Evidence bundle
 
@@ -70,36 +78,39 @@ A completed parcel creates files such as:
 - `TRACKING123_waybill.png`
 - `TRACKING123.json`
 
-Only finalized bundles are eligible for server transfer. ScanCode verifies copied files before deleting the local evidence copy.
+Only finalized bundles are eligible for server transfer.
 
-## Build verification
+## v4.6 build verification
 
-The v4.3 Windows workflow validates:
+The Windows workflow validates:
 
-- native QR/barcode and evidence core
-- UI layout regression
-- Start/Pause/Stop warehouse workflow
-- automatic camera fallback when the saved camera index fails
-- Python syntax before packaging
-- successful creation of the portable EXE and Windows installer
+- native core
+- UI layout
+- warehouse Start/Pause/Stop workflow
+- automatic camera startup/fallback
+- Active App output
+- v4.5 fixed-focus 1080p behavior
+- softened QR recovery
+- Code128 acceptance in QR + Barcode mode
+- Near/Far waybill focus presets
+- optional autofocus request
+- v4.6 lightweight decoder
+- portable EXE + Windows installer generation
 
-The clean v4.3 production build passed all checks and generated `ScanCode-Setup-4.3.0-x64.exe`.
-
-GitHub CI cannot access the physical warehouse webcam, so the final hardware check still needs to be performed on the target Windows PC.
+GitHub CI cannot physically test the user's webcam, so final camera positioning/lighting still needs to be validated on the warehouse PC.
 
 ## Source layout
 
-- `native/scancode_app.py` — v4.3 production Windows application and automatic camera runtime
-- `native/scancode_core.py` — barcode, recording, evidence and sync core
-- `native/test_camera_startup_v43.py` — production camera auto-detection regression test
-- `native/test_workflow_v42.py` — parcel workflow regression test
-- `.github/workflows/native-v4.3-camera-release.yml` — v4.3 Windows test/build/release pipeline
+- `native/scancode_app.py` — stable native base application
+- `native/scancode_app_v44.py` — Active App output
+- `native/scancode_app_v45.py` — 1080p fixed-focus camera profile
+- `native/scancode_app_v46.py` — v4.6 performance and focus controls
+- `native/scancode_enhanced_v46.py` — lightweight QR/barcode decoder
+- `native/scancode_core.py` — evidence, barcode and recording core
+- `native/test_performance_focus_v46.py` — v4.6 regression test
+- `.github/workflows/native-v4.6-performance-focus-release.yml` — v4.6 Windows test/build/release pipeline
 
-The older Electron files remain in the repository only as development history and are **not the recommended production build**.
-
-## Uninstall and evidence safety
-
-The Setup EXE installs ScanCode into Program Files and registers a normal Windows uninstaller. Uninstalling the application does not intentionally delete `Documents\ScanCode` warehouse evidence.
+Older Electron files remain only as development history and are not the recommended production build.
 
 ## Publisher
 
