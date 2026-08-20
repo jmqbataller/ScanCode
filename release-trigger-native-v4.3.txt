@@ -1,0 +1,2 @@
+ScanCode v4.3.0 camera auto-start release trigger.
+Safe Tk startup delay + automatic Camera 0-5 detection across DirectShow/MSMF/Windows Auto.
