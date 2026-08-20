@@ -40,7 +40,7 @@ from scancode_core import (
     zoom_crop,
 )
 
-APP_VERSION = "4.2.0"
+APP_VERSION = "4.3.0"
 APP_NAME = "ScanCode"
 RED = "#d51f2a"
 DARK_RED = "#8f151c"
@@ -86,6 +86,8 @@ class ScanCodeApp:
         self.camera_thread = None
         self.camera_stop = threading.Event()
         self.camera_live = False
+        self.active_camera_index = None
+        self.active_camera_backend = ""
         self.last_frame_at = 0.0
         self.current_session: ParcelSession | None = None
         self.ending_sessions: list[ParcelSession] = []
@@ -113,10 +115,14 @@ class ScanCodeApp:
             self.toast(f"Recovered {len(recovered)} interrupted video(s).")
 
         if start_services:
-            self.start_camera()
+            # Start background services immediately, but let Tk enter its main
+            # event loop before touching Windows camera backends. Starting the
+            # camera thread inside __init__ can race Tk/Windows initialization
+            # in a frozen EXE and leave a real webcam unopened.
             self.start_sync_worker()
             self.root.after(25, self.ui_tick)
             self.root.after(150, self.event_tick)
+            self.root.after(300, self.start_camera)
         else:
             self.root.after_idle(self._reflow_layout)
 
@@ -464,73 +470,177 @@ class ScanCodeApp:
         self.save_settings(); self.restart_camera()
 
     def restart_camera(self):
-        self.save_settings(); self.stop_camera(); self.root.after(250,self.start_camera)
+        self.save_settings()
+        self.stop_camera()
+        self.set_badge(self.camera_badge, "CAMERA RESTARTING", "warn")
+        self.root.after(350, self.start_camera)
 
     def start_camera(self):
+        # This method is always called on Tk's UI thread. Capture every Tk value
+        # here so the worker thread never needs to query tkinter variables.
+        if self.camera_thread and self.camera_thread.is_alive():
+            if self.camera_stop.is_set():
+                self.root.after(250, self.start_camera)
+            return
+
+        mode = self.mode_var.get() or "PC / USB Camera"
+        try:
+            camera_index = int(self.camera_var.get() or self.settings.get("camera_index", 0) or 0)
+        except Exception:
+            camera_index = 0
+        network_url = self.network_var.get().strip()
+
         self.camera_stop.clear()
-        self.camera_thread=threading.Thread(target=self.camera_worker,daemon=True)
+        self.camera_live = False
+        self.set_badge(self.camera_badge, "CAMERA STARTING", "warn")
+        self.video_label.configure(text="Detecting camera…", image="")
+        self.camera_thread = threading.Thread(
+            target=self.camera_worker,
+            args=(mode, camera_index, network_url),
+            daemon=True,
+        )
         self.camera_thread.start()
-        self.set_badge(self.camera_badge,"CAMERA STARTING","warn")
 
     def stop_camera(self):
         self.camera_stop.set()
         if self.capture:
-            try:self.capture.release()
-            except Exception:pass
-        self.capture=None;self.camera_live=False
+            try:
+                self.capture.release()
+            except Exception:
+                pass
+        self.capture = None
+        self.camera_live = False
 
-    def open_capture(self):
-        mode=self.mode_var.get()
-        if mode=="Phone / Network Camera":
-            url=self.network_var.get().strip()
-            if not url:raise RuntimeError("Network camera URL is empty.")
-            cap=cv2.VideoCapture(url)
-            if not cap.isOpened():raise RuntimeError("Could not open network camera URL.")
+    def open_capture(self, mode, camera_index=0, network_url=""):
+        if mode == "Phone / Network Camera":
+            url = str(network_url or "").strip()
+            if not url:
+                raise RuntimeError("Network camera URL is empty.")
+            cap = cv2.VideoCapture(url)
+            if not cap.isOpened():
+                cap.release()
+                raise RuntimeError("Could not open network camera URL.")
+            self.active_camera_index = None
+            self.active_camera_backend = "Network"
             return cap
-        idx=int(self.camera_var.get() or 0)
-        backends=[cv2.CAP_DSHOW,cv2.CAP_MSMF,cv2.CAP_ANY]
-        last=None
-        for backend in backends:
-            cap=cv2.VideoCapture(idx,backend)
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH,1280);cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720);cap.set(cv2.CAP_PROP_FPS,30)
-            try:cap.set(cv2.CAP_PROP_AUTOFOCUS,1)
-            except Exception:pass
-            if cap.isOpened():
-                for _ in range(12):
-                    ok,frame=cap.read()
-                    if ok and frame is not None and frame.size:
-                        return cap
-                    time.sleep(.05)
-            last=cap;cap.release()
-        raise RuntimeError(f"Windows could not open camera index {idx} with DirectShow/MSMF.")
 
-    def camera_worker(self):
-        retry=0
+        try:
+            preferred = max(0, min(5, int(camera_index)))
+        except Exception:
+            preferred = 0
+
+        # Try the saved camera first, then automatically fall back to every
+        # common Windows camera index. This fixes PCs where the built-in camera
+        # is Camera 1/2 instead of Camera 0 after driver/install changes.
+        indexes = [preferred] + [i for i in range(6) if i != preferred]
+        backends = [
+            ("DirectShow", cv2.CAP_DSHOW),
+            ("Media Foundation", cv2.CAP_MSMF),
+            ("Windows Auto", cv2.CAP_ANY),
+        ]
+        attempted = []
+
+        for idx in indexes:
+            for backend_name, backend in backends:
+                if self.camera_stop.is_set():
+                    raise RuntimeError("Camera start cancelled.")
+                cap = None
+                try:
+                    attempted.append(f"{idx}/{backend_name}")
+                    cap = cv2.VideoCapture(idx, backend)
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                    cap.set(cv2.CAP_PROP_FPS, 30)
+                    try:
+                        cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
+                    except Exception:
+                        pass
+
+                    if not cap.isOpened():
+                        cap.release()
+                        continue
+
+                    # A backend can report opened before Windows delivers a
+                    # usable frame. Warm it up before declaring success.
+                    deadline = time.time() + 1.25
+                    while time.time() < deadline and not self.camera_stop.is_set():
+                        ok, frame = cap.read()
+                        if ok and frame is not None and getattr(frame, "size", 0):
+                            self.active_camera_index = idx
+                            self.active_camera_backend = backend_name
+                            return cap
+                        time.sleep(0.06)
+                except Exception:
+                    pass
+                finally:
+                    if cap is not None and cap is not self.capture:
+                        # Keep only a successfully returned capture open.
+                        if self.active_camera_index != idx or not cap.isOpened():
+                            try:
+                                cap.release()
+                            except Exception:
+                                pass
+
+        raise RuntimeError(
+            "No working PC/USB camera was detected. Tried Camera 0–5 with "
+            "DirectShow, Media Foundation and Windows Auto. Close Camera/Teams/"
+            "Zoom if they are using the webcam, then press Restart Camera."
+        )
+
+    def camera_worker(self, mode, camera_index, network_url):
+        retry = 0
         while not self.camera_stop.is_set():
             try:
-                self.capture=self.open_capture();self.camera_live=True;self.events.put(("camera_live",None));retry=0
-                fps=float(self.capture.get(cv2.CAP_PROP_FPS) or 25);fps=fps if 5<=fps<=60 else 25
-                frame_no=0
+                self.active_camera_index = None
+                self.active_camera_backend = ""
+                self.capture = self.open_capture(mode, camera_index, network_url)
+                self.camera_live = True
+                self.events.put(("camera_live", {
+                    "index": self.active_camera_index,
+                    "backend": self.active_camera_backend,
+                    "mode": mode,
+                }))
+                retry = 0
+
+                fps = float(self.capture.get(cv2.CAP_PROP_FPS) or 25)
+                fps = fps if 5 <= fps <= 60 else 25
+                frame_no = 0
                 while not self.camera_stop.is_set():
-                    ok,frame=self.capture.read()
+                    ok, frame = self.capture.read()
                     if not ok or frame is None:
                         raise RuntimeError("Camera stopped returning frames.")
-                    self.last_frame_at=time.time();frame_no+=1
-                    with self.frame_lock:self.latest_frame=frame.copy()
-                    far=zoom_crop(frame,float(self.far_zoom_var.get() or 1))
-                    self.write_sessions(far,fps)
-                    if frame_no%3==0:
-                        for code,fmt in read_codes(frame,self.filter_var.get(),float(self.scanner_zoom_var.get() or 1.75)):
-                            self.events.put(("barcode",(code,fmt)))
-                    if self.quality_var.get() and frame_no%30==0:
-                        self.events.put(("quality",camera_quality(frame)))
+                    self.last_frame_at = time.time()
+                    frame_no += 1
+                    with self.frame_lock:
+                        self.latest_frame = frame.copy()
+
+                    # Worker threads only read the plain-Python settings dict;
+                    # tkinter variables stay on the UI thread.
+                    far_zoom = float(self.settings.get("far_zoom", 1.0) or 1.0)
+                    scanner_zoom = float(self.settings.get("scanner_zoom", 1.75) or 1.75)
+                    barcode_filter = str(self.settings.get("barcode_filter", "shipping") or "shipping")
+                    quality_enabled = bool(self.settings.get("quality", True))
+
+                    far = zoom_crop(frame, far_zoom)
+                    self.write_sessions(far, fps)
+                    if frame_no % 3 == 0:
+                        for code, fmt in read_codes(frame, barcode_filter, scanner_zoom):
+                            self.events.put(("barcode", (code, fmt)))
+                    if quality_enabled and frame_no % 30 == 0:
+                        self.events.put(("quality", camera_quality(frame)))
                 break
             except Exception as exc:
-                self.camera_live=False;self.events.put(("camera_error",str(exc)));retry+=1
-                try:self.capture.release()
-                except Exception:pass
-                self.capture=None
-                if self.camera_stop.wait(min(5,1+retry)):break
+                self.camera_live = False
+                self.events.put(("camera_error", str(exc)))
+                retry += 1
+                try:
+                    if self.capture:
+                        self.capture.release()
+                except Exception:
+                    pass
+                self.capture = None
+                if self.camera_stop.wait(min(6, 1 + retry)):
+                    break
 
     def write_sessions(self,frame,fps):
         finalize=[]
@@ -724,7 +834,21 @@ class ScanCodeApp:
             while True:
                 kind,data=self.events.get_nowait()
                 if kind=="barcode":self.handle_barcode(*data)
-                elif kind=="camera_live":self.set_badge(self.camera_badge,"CAMERA LIVE","good");self.toast("Native camera is live.")
+                elif kind=="camera_live":
+                    self.set_badge(self.camera_badge,"CAMERA LIVE","good")
+                    if isinstance(data, dict) and data.get("index") is not None:
+                        detected = int(data["index"])
+                        if self.camera_var.get() != str(detected):
+                            self.camera_var.set(str(detected))
+                            self.settings["camera_index"] = detected
+                            try:
+                                self.settings_path.write_text(json.dumps(self.settings, indent=2), encoding="utf-8")
+                            except Exception:
+                                pass
+                        backend = data.get("backend") or "Windows camera"
+                        self.toast(f"Camera {detected} auto-detected • {backend}.")
+                    else:
+                        self.toast("Network camera is live.")
                 elif kind=="camera_error":self.set_badge(self.camera_badge,"CAMERA ERROR","bad");self.video_label.configure(text=f"CAMERA ERROR\n{data}",image="");
                 elif kind=="quality":self.set_badge(self.quality_badge,data[0],"good" if data[0]=="QUALITY GOOD" else "warn")
                 elif kind=="saved":self.saved_count+=1;self.history.insert(0,f"{time.strftime('%H:%M:%S')}   {data.code}   {data.final_path.name}");self.toast(f"Saved {data.code}")
