@@ -1,0 +1,284 @@
+ScanCode v5 CI DIAGNOSTIC
+Branch: main
+SHA: 514157e082c976602fdc72e42b22820b67572834
+Started: 2026-08-20T08:46:56.7905181+00:00
+
+=== DEPENDENCIES ===
+Requirement already satisfied: pip in C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages (26.2.1)
+PIP_UPGRADE_EXIT=0
+Collecting opencv-python<5,>=4.10 (from -r native/requirements.txt (line 1))
+  Downloading opencv_python-4.14.0.94-cp37-abi3-win_amd64.whl.metadata (20 kB)
+Collecting Pillow<13,>=10 (from -r native/requirements.txt (line 2))
+  Downloading pillow-12.3.0-cp312-cp312-win_amd64.whl.metadata (9.3 kB)
+Collecting zxing-cpp==3.1.1 (from -r native/requirements.txt (line 3))
+  Downloading zxing_cpp-3.1.1-cp312-abi3-win_amd64.whl.metadata (2.3 kB)
+Collecting pywinauto==0.6.9 (from -r native/requirements.txt (line 4))
+  Downloading pywinauto-0.6.9-py2.py3-none-any.whl.metadata (2.0 kB)
+Collecting pyperclip==1.9.0 (from -r native/requirements.txt (line 5))
+  Downloading pyperclip-1.9.0.tar.gz (20 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting qrcode<9,>=7.4 (from qrcode[pil]<9,>=7.4->-r native/requirements.txt (line 6))
+  Downloading qrcode-8.2-py3-none-any.whl.metadata (17 kB)
+Collecting pyinstaller<7,>=6.12 (from -r native/requirements.txt (line 7))
+  Downloading pyinstaller-6.22.2-py3-none-win_amd64.whl.metadata (8.5 kB)
+Collecting six (from pywinauto==0.6.9->-r native/requirements.txt (line 4))
+  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Collecting comtypes (from pywinauto==0.6.9->-r native/requirements.txt (line 4))
+  Downloading comtypes-1.4.16-py3-none-any.whl.metadata (7.8 kB)
+Collecting pywin32 (from pywinauto==0.6.9->-r native/requirements.txt (line 4))
+  Downloading pywin32-312-cp312-cp312-win_amd64.whl.metadata (11 kB)
+Collecting numpy>=2 (from opencv-python<5,>=4.10->-r native/requirements.txt (line 1))
+  Downloading numpy-2.5.2-cp312-cp312-win_amd64.whl.metadata (6.6 kB)
+Requirement already satisfied: colorama in C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages (from qrcode<9,>=7.4->qrcode[pil]<9,>=7.4->-r native/requirements.txt (line 6)) (0.4.6)
+Collecting altgraph (from pyinstaller<7,>=6.12->-r native/requirements.txt (line 7))
+  Downloading altgraph-0.17.5-py2.py3-none-any.whl.metadata (7.5 kB)
+Requirement already satisfied: packaging>=22.0 in C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages (from pyinstaller<7,>=6.12->-r native/requirements.txt (line 7)) (26.3)
+Collecting pefile>=2022.5.30 (from pyinstaller<7,>=6.12->-r native/requirements.txt (line 7))
+  Downloading pefile-2024.8.26-py3-none-any.whl.metadata (1.4 kB)
+Collecting pyinstaller-hooks-contrib>=2026.6 (from pyinstaller<7,>=6.12->-r native/requirements.txt (line 7))
+  Downloading pyinstaller_hooks_contrib-2026.6-py3-none-any.whl.metadata (16 kB)
+Collecting pywin32-ctypes>=0.2.1 (from pyinstaller<7,>=6.12->-r native/requirements.txt (line 7))
+  Downloading pywin32_ctypes-0.2.3-py3-none-any.whl.metadata (3.9 kB)
+Collecting setuptools>=42.0.0 (from pyinstaller<7,>=6.12->-r native/requirements.txt (line 7))
+  Using cached setuptools-84.0.0-py3-none-any.whl.metadata (6.6 kB)
+Downloading zxing_cpp-3.1.1-cp312-abi3-win_amd64.whl (1.0 MB)
+   ---------------------------------------- 1.0/1.0 MB 7.9 MB/s  0:00:00
+Downloading pywinauto-0.6.9-py2.py3-none-any.whl (363 kB)
+Downloading opencv_python-4.14.0.94-cp37-abi3-win_amd64.whl (41.2 MB)
+   ---------------------------------------- 41.2/41.2 MB 42.9 MB/s  0:00:00
+Downloading pillow-12.3.0-cp312-cp312-win_amd64.whl (7.2 MB)
+   ---------------------------------------- 7.2/7.2 MB 55.7 MB/s  0:00:00
+Downloading qrcode-8.2-py3-none-any.whl (45 kB)
+Downloading pyinstaller-6.22.2-py3-none-win_amd64.whl (1.4 MB)
+   ---------------------------------------- 1.4/1.4 MB 71.5 MB/s  0:00:00
+Downloading numpy-2.5.2-cp312-cp312-win_amd64.whl (12.5 MB)
+   ---------------------------------------- 12.5/12.5 MB 131.2 MB/s  0:00:00
+Downloading pefile-2024.8.26-py3-none-any.whl (74 kB)
+Downloading pyinstaller_hooks_contrib-2026.6-py3-none-any.whl (457 kB)
+Downloading pywin32_ctypes-0.2.3-py3-none-any.whl (30 kB)
+Using cached setuptools-84.0.0-py3-none-any.whl (818 kB)
+Downloading altgraph-0.17.5-py2.py3-none-any.whl (21 kB)
+Downloading comtypes-1.4.16-py3-none-any.whl (296 kB)
+Downloading pywin32-312-cp312-cp312-win_amd64.whl (6.9 MB)
+   ---------------------------------------- 6.9/6.9 MB 141.5 MB/s  0:00:00
+Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+Building wheels for collected packages: pyperclip
+  Building wheel for pyperclip (pyproject.toml): started
+  Building wheel for pyperclip (pyproject.toml): finished with status 'done'
+  Created wheel for pyperclip: filename=pyperclip-1.9.0-py3-none-any.whl size=11117 sha256=69956a282eb32c5a1d2cb507f9b6299c8ca4c0428dbc16b87486c52eab7c805a
+  Stored in directory: c:\users\runneradmin\appdata\local\pip\cache\wheels\e0\e8\fc\8ab8aa326e33bc066ccd5f3ca9646eab4299881af933f94f09
+Successfully built pyperclip
+Installing collected packages: pyperclip, altgraph, zxing-cpp, six, setuptools, qrcode, pywin32-ctypes, pywin32, pyinstaller-hooks-contrib, Pillow, pefile, numpy, comtypes, pywinauto, pyinstaller, opencv-python
+
+Successfully installed Pillow-12.3.0 altgraph-0.17.5 comtypes-1.4.16 numpy-2.5.2 opencv-python-4.14.0.94 pefile-2024.8.26 pyinstaller-6.22.2 pyinstaller-hooks-contrib-2026.6 pyperclip-1.9.0 pywin32-312 pywin32-ctypes-0.2.3 pywinauto-0.6.9 qrcode-8.2 setuptools-84.0.0 six-1.17.0 zxing-cpp-3.1.1
+DEPENDENCIES_EXIT=0
+
+=== SYNTAX ===
+COMPILE native/scancode_core.py EXIT=0
+COMPILE native/scancode_app.py EXIT=0
+COMPILE native/scancode_app_v44.py EXIT=0
+COMPILE native/scancode_app_v45.py EXIT=0
+COMPILE native/scancode_enhanced_v46.py EXIT=0
+COMPILE native/scancode_app_v46.py EXIT=0
+COMPILE native/scancode_v5_services.py EXIT=0
+COMPILE native/scancode_scanner_v50.py EXIT=0
+COMPILE native/scancode_app_v50.py EXIT=0
+COMPILE native/scancode_app_v50_runtime.py EXIT=0
+COMPILE native/scancode_app_v50_final.py EXIT=0
+COMPILE native/test_v5_warehouse_suite.py EXIT=0
+SYNTAX_EXIT=0
+
+=== TESTS ===
+--- test_native_core.py ---
+NATIVE CORE PASS: barcode decode, quality, waybill, video record, metadata, SHA-verified server sync
+test_native_core.py EXIT=0
+--- test_ui_layout.py ---
+UI PASS: scrollable layout + master Start/Stop + system Pause/Resume states
+test_ui_layout.py EXIT=0
+--- test_workflow_v42.py ---
+Exception in thread Thread-1 (<lambda>):
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "D:\a\ScanCode\ScanCode\native\scancode_app.py", line 730, in <lambda>
+    threading.Thread(target=lambda: (winsound.Beep(880,70), winsound.Beep(1180,80)), daemon=True).start()
+                                     ^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Failed to beep
+Exception in thread Thread-3 (<lambda>):
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "D:\a\ScanCode\ScanCode\native\scancode_app.py", line 730, in <lambda>
+    threading.Thread(target=lambda: (winsound.Beep(880,70), winsound.Beep(1180,80)), daemon=True).start()
+                                     ^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Failed to beep
+WORKFLOW V4.2 PASS: Start gate, scan -> recording, instant next-scan cutover, Pause/Resume, Stop finalize, target dispatch.
+test_workflow_v42.py EXIT=0
+--- test_camera_startup_v43.py ---
+CAMERA V4.3 PASS: saved Camera 0 failed; Camera 2 auto-detected through Media Foundation.
+test_camera_startup_v43.py EXIT=0
+--- test_active_app_runtime_v44.py ---
+ACTIVE APP V4.4 PASS: scan -> clipboard -> foreground app, optional Enter, self-paste protection, legacy migration.
+test_active_app_runtime_v44.py EXIT=0
+--- test_fixed_focus_v45.py ---
+FIXED FOCUS V4.5 PASS: softened QR decoded; 1080p MJPG fixed-focus capture requested.
+test_fixed_focus_v45.py EXIT=0
+--- test_performance_focus_v46.py ---
+V4.6 PASS: light decoder, QR + Code128, Near/Far focus and optional autofocus verified.
+test_performance_focus_v46.py EXIT=0
+--- test_v5_warehouse_suite.py ---
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 633, in _rmtree_unsafe
+    os.unlink(fullname)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpnus6_gx8\\evidence.db'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\a\ScanCode\ScanCode\native\test_v5_warehouse_suite.py", line 155, in <module>
+    main()
+  File "D:\a\ScanCode\ScanCode\native\test_v5_warehouse_suite.py", line 76, in main
+    with tempfile.TemporaryDirectory() as td:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 950, in __exit__
+    self.cleanup()
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 954, in cleanup
+    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 934, in _rmtree
+    _shutil.rmtree(name, onexc=onexc)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 781, in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 635, in _rmtree_unsafe
+    onexc(os.unlink, fullname, err)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 909, in onexc
+    _os.unlink(path)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpnus6_gx8\\evidence.db'
+test_v5_warehouse_suite.py EXIT=1
+
+=== PYINSTALLER ===
+372 INFO: PyInstaller: 6.22.2, contrib hooks: 2026.6
+372 INFO: Python: 3.12.10
+396 INFO: Platform: Windows-2025Server-10.0.26100-SP0
+396 INFO: Python environment: C:\hostedtoolcache\windows\Python\3.12.10\x64
+397 INFO: wrote build-diagnostic\ScanCode-Diagnostic.spec
+404 INFO: Removing temporary files and cleaning cache in C:\Users\runneradmin\AppData\Local\pyinstaller
+1769 INFO: Module search paths (PYTHONPATH):
+['C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Scripts\\pyinstaller.exe',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\python312.zip',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\DLLs',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\win32',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\win32\\lib',
+ 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\pythonwin',
+ 'D:\\a\\ScanCode\\ScanCode\\native']
+2066 INFO: Appending 'binaries' from .spec
+2066 INFO: Appending 'datas' from .spec
+2070 INFO: checking Analysis
+2070 INFO: Building Analysis because Analysis-00.toc is non existent
+2070 INFO: Looking for Python shared library...
+2070 INFO: Using Python shared library: C:\hostedtoolcache\windows\Python\3.12.10\x64\python312.dll
+2072 INFO: Running Analysis Analysis-00.toc
+2072 INFO: Target bytecode optimization level: 0
+2072 INFO: Initializing module dependency graph...
+2074 INFO: Initializing module graph hook caches...
+2091 INFO: Analyzing modules for base_library.zip ...
+2802 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+3265 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+3626 INFO: Processing standard module hook 'hook-math.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+4893 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+6660 INFO: Caching module dependency graph...
+6700 INFO: Analyzing D:\a\ScanCode\ScanCode\native\scancode_app_v50_final.py
+6723 INFO: Processing pre-find-module-path hook 'hook-tkinter.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+6723 INFO: TclTkInfo: initializing cached Tcl/Tk info...
+7237 INFO: Processing standard module hook 'hook-_tkinter.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+7249 INFO: Processing standard module hook 'hook-cv2.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+7642 INFO: Processing standard module hook 'hook-numpy.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+7970 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+7970 INFO: SetuptoolsInfo: initializing cached setuptools info...
+8913 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+9074 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+9344 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+9935 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+10378 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+10592 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+10677 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+12088 INFO: Processing standard module hook 'hook-PIL.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+12192 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+12527 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+12702 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+13036 INFO: Processing standard module hook 'hook-pythoncom.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+13106 INFO: Processing standard module hook 'hook-pywintypes.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+13294 INFO: Processing standard module hook 'hook-comtypes.client.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\pywinauto\keyboard.py:105: SyntaxWarning: invalid escape sequence '\;'
+  option only affects the behavior of keys matching [-=[]\;',./a-zA-Z0-9 ].  Note
+C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\pywinauto\linux\keyboard.py:55: SyntaxWarning: invalid escape sequence '\e'
+  '\e': "Escape",
+14705 INFO: Processing pre-safe-import-module hook 'hook-win32com.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\pre_safe_import_module'
+14774 INFO: Processing standard module hook 'hook-win32com.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+15244 INFO: Processing standard module hook 'hook-sqlite3.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+15479 INFO: Analyzing hidden import 'PIL._tkinter_finder'
+15479 INFO: Analyzing hidden import 'cv2.config'
+15481 INFO: Analyzing hidden import 'cv2.config-3'
+15483 INFO: Analyzing hidden import 'cv2.cv2'
+15483 INFO: Analyzing hidden import 'cv2.data'
+15483 INFO: Analyzing hidden import 'cv2.gapi'
+15495 INFO: Analyzing hidden import 'cv2.load_config_py2'
+15497 INFO: Analyzing hidden import 'cv2.mat_wrapper'
+15497 INFO: Analyzing hidden import 'cv2.misc'
+15499 INFO: Analyzing hidden import 'cv2.typing'
+15505 INFO: Analyzing hidden import 'cv2.utils'
+15507 INFO: Processing module hooks (post-graph stage)...
+15818 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+15907 INFO: Processing standard module hook 'hook-_tkinter.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks'
+15921 INFO: Performing binary vs. data reclassification (1029 entries)
+16440 INFO: Looking for ctypes DLLs
+16672 INFO: Analyzing run-time hooks ...
+16674 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+16678 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+16680 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+16682 INFO: Including run-time hook 'pyi_rth_pywintypes.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+16683 INFO: Including run-time hook 'pyi_rth_pythoncom.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+16683 INFO: Including run-time hook 'pyi_rth__tkinter.py' from 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+16733 INFO: Creating base_library.zip...
+16755 INFO: Looking for dynamic libraries
+C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\pywinauto\__init__.py:80: UserWarning: Revert to STA COM threading mode
+  warnings.warn("Revert to STA COM threading mode", UserWarning)
+17402 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\numpy.libs', 'C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cv2\\../../x64/vc17/bin']
+17402 INFO: Extra DLL search directories (PATH): ['C:\\hostedtoolcache\\windows\\Python\\3.12.10\\x64\\Lib\\site-packages\\cv2\\../../x64/vc17/bin']
+18904 INFO: Warnings written to D:\a\ScanCode\ScanCode\build-diagnostic\ScanCode-Diagnostic\warn-ScanCode-Diagnostic.txt
+18969 INFO: Graph cross-reference written to D:\a\ScanCode\ScanCode\build-diagnostic\ScanCode-Diagnostic\xref-ScanCode-Diagnostic.html
+19018 INFO: checking PYZ
+19020 INFO: Building PYZ because PYZ-00.toc is non existent
+19020 INFO: Building PYZ (ZlibArchive) D:\a\ScanCode\ScanCode\build-diagnostic\ScanCode-Diagnostic\PYZ-00.pyz
+19716 INFO: Building PYZ (ZlibArchive) D:\a\ScanCode\ScanCode\build-diagnostic\ScanCode-Diagnostic\PYZ-00.pyz completed successfully.
+19756 INFO: checking PKG
+19756 INFO: Building PKG because PKG-00.toc is non existent
+19756 INFO: Building PKG (CArchive) ScanCode-Diagnostic.pkg
+41166 INFO: Building PKG (CArchive) ScanCode-Diagnostic.pkg completed successfully.
+41190 INFO: Bootloader C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+41190 INFO: checking EXE
+41190 INFO: Building EXE because EXE-00.toc is non existent
+41190 INFO: Building EXE from EXE-00.toc
+41190 INFO: Copying bootloader EXE to D:\a\ScanCode\ScanCode\dist-diagnostic\ScanCode-Diagnostic.exe
+41194 INFO: Copying icon to EXE
+41196 INFO: Copying 0 resources to EXE
+41196 INFO: Embedding manifest in EXE
+41198 INFO: Appending PKG archive to EXE
+41241 INFO: Fixing EXE headers
+41600 INFO: Building EXE from EXE-00.toc completed successfully.
+41623 INFO: Build complete! The results are available in: D:\a\ScanCode\ScanCode\dist-diagnostic
+PYINSTALLER_EXIT=0
+EXE_EXISTS=True
+Finished: 2026-08-20T08:48:16.0352848+00:00
