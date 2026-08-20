@@ -43,8 +43,14 @@ class ScanCodeApp(v50.ScanCodeApp):
         elif "waybill_focus_mode" not in raw:
             data["waybill_focus_mode"] = "Auto"
 
-        if "scan_target" not in raw:
+        # One-time production migration: existing v4.x installs may have Active
+        # App saved as their target. V5 is specifically the packing + BigSeller
+        # workstation, so first v5 launch moves to BigSeller once. The marker is
+        # then retained; if the operator later chooses Active App and saves, that
+        # explicit choice is respected on future launches.
+        if not bool(raw.get("v5_bigseller_target_migrated", False)):
             data["scan_target"] = "BigSeller"
+            data["v5_bigseller_target_migrated"] = True
         return data
 
     def save_settings(self):
@@ -54,13 +60,13 @@ class ScanCodeApp(v50.ScanCodeApp):
             if mode not in {"Auto", "Near", "Far"}:
                 mode = "Auto"
             self.settings["waybill_focus_mode"] = mode
+            self.settings["v5_bigseller_target_migrated"] = True
             if self.settings.get("waybill_focus", True):
                 if mode == "Far":
                     self.settings["scanner_zoom"] = 2.15
                 elif mode == "Near":
                     self.settings["scanner_zoom"] = 1.35
                 else:
-                    # Auto starts wide and SmartScanner adapts on successful reads.
                     self.settings["scanner_zoom"] = 1.35
             self.settings_path.write_text(json.dumps(self.settings, indent=2), encoding="utf-8")
         except Exception:
@@ -74,8 +80,6 @@ class ScanCodeApp(v50.ScanCodeApp):
         self.ops_counter.pack(anchor="w", padx=14, pady=(0, 10))
 
     def write_sessions(self, frame, fps):
-        # Keep v5's pre-record buffer at ~8 FPS rather than camera FPS so a
-        # five-second buffer stays both time-correct and memory-light.
         try:
             seconds = max(0, min(10, int(self.settings.get("pre_record_seconds", 5) or 5)))
             max_items = max(1, seconds * 8)
@@ -92,7 +96,6 @@ class ScanCodeApp(v50.ScanCodeApp):
                     self._frame_buffer.append(buf.tobytes())
         except Exception:
             pass
-        # Skip v50's older buffering implementation but keep the proven v4 session writer.
         return v46.ScanCodeApp.write_sessions(self, frame, fps)
 
     def _decode_buffer_frames(self):
@@ -163,7 +166,6 @@ class ScanCodeApp(v50.ScanCodeApp):
         self.root.after(2500, self._ops_tick)
 
     def open_history_item(self):
-        # Prefer the v5 evidence index; fall back to legacy filename lookup.
         try:
             sel = self.history.curselection()
             if sel and hasattr(self, "db"):
@@ -188,7 +190,6 @@ class ScanCodeApp(v50.ScanCodeApp):
         return super().open_history_item()
 
     def _maintenance_worker(self):
-        # Background cleanup must not call Tk/toast directly.
         while not self._cleanup_stop.wait(3600):
             if not self.settings.get("auto_cleanup", True) or not hasattr(self, "db"):
                 continue
