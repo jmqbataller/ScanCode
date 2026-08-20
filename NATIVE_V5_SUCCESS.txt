@@ -1,0 +1,17 @@
+ScanCode v5.0.0 BUILD SUCCESS
+Legacy native core: PASS
+UI layout: PASS
+Warehouse workflow: PASS
+Camera startup: PASS
+Active App output: PASS
+Fixed-focus 1080p: PASS
+QR + Barcode: PASS
+Focus controls: PASS
+V5 30-feature suite: PASS
+Evidence DB/Timeline: PASS
+BigSeller queue/retry safety: PASS
+BigSeller migration: PASS
+Integrity: PASS
+Smart scanner: PASS
+Installer: ScanCode-Setup-5.0.0-x64.exe
+Built: 2026-08-20T08:53:24.4463135+00:00
