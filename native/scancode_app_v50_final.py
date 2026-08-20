@@ -8,7 +8,8 @@ import cv2
 
 import scancode_app_v50_runtime as runtime
 from scancode_core import pending_bundles, waybill_crop
-from scancode_v5_services import best_frame
+from scancode_enhanced_v46 import read_codes_optimized
+from scancode_v5_services import best_frame, normalize_code
 
 APP_VERSION = "5.0.0"
 runtime.APP_VERSION = APP_VERSION
@@ -74,9 +75,6 @@ class ScanCodeApp(runtime.ScanCodeApp):
         return runtime.ScanCodeApp._decode_buffer_frames(self)
 
     def submit_scan_target(self, code):
-        # accept_scan creates the video session first, then the v5 evidence row.
-        # Wait briefly so a very fast BigSeller automation cannot update a row
-        # that has not been inserted yet.
         deadline = time.time() + 0.8
         while hasattr(self, "db") and not self.db.exists(code) and time.time() < deadline:
             time.sleep(0.02)
@@ -85,10 +83,29 @@ class ScanCodeApp(runtime.ScanCodeApp):
             return self.submit_bigseller(code)
         return self.submit_active_app(code)
 
+    def _best_matching_waybill(self, code, preframes):
+        wanted = normalize_code(code)
+        zoom = float(self.settings.get("scanner_zoom", 1.35) or 1.35)
+        candidates = []
+        # Only examine the last ~1.5 seconds of buffered history. A frame is
+        # eligible only when it independently decodes to this parcel's code.
+        for frame in preframes[-12:]:
+            try:
+                found = read_codes_optimized(frame, "QR + Barcode", zoom)
+                if any(normalize_code(text) == wanted for text, _fmt in found):
+                    candidates.append(frame)
+            except Exception:
+                pass
+        try:
+            with self.frame_lock:
+                current = None if self.latest_frame is None else self.latest_frame.copy()
+            if current is not None:
+                candidates.append(current)
+        except Exception:
+            pass
+        return best_frame(candidates)
+
     def accept_scan(self, raw_code):
-        # Decode pre-record frames once before parent processing. Suppress the
-        # older unlocked injection in the feature layer, then inject under the
-        # session lock so VideoWriter is never written from two threads at once.
         preframes = runtime.ScanCodeApp._decode_buffer_frames(self)
         self._suppress_parent_prebuffer = True
         try:
@@ -109,7 +126,7 @@ class ScanCodeApp(runtime.ScanCodeApp):
                         break
 
             if self.settings.get("best_waybill_shot", True):
-                best = best_frame(preframes[-30:])
+                best = self._best_matching_waybill(session.code, preframes)
                 if best is not None:
                     try:
                         zoom = float(self.settings.get("scanner_zoom", 1.35) or 1.35)
@@ -119,7 +136,7 @@ class ScanCodeApp(runtime.ScanCodeApp):
 
             if hasattr(self, "db"):
                 self.db.event(session.code, "PREBUFFER_INJECTED", f"{len(preframes)} compressed history frames")
-                self.db.event(session.code, "BEST_WAYBILL_SELECTED", "Sharpest buffered frame selected")
+                self.db.event(session.code, "BEST_WAYBILL_SELECTED", "Sharpest frame tied to current tracking selected")
         return result
 
     def _bundle_needs_sync(self, meta: Path):
