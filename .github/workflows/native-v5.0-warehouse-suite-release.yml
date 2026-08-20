@@ -1,0 +1,194 @@
+name: ScanCode v5 Warehouse Suite
+
+on:
+  push:
+    paths:
+      - 'release-trigger-native-v5.0.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test-build-release:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install native dependencies
+        shell: pwsh
+        run: python -m pip install --upgrade pip && pip install -r native/requirements.txt
+
+      - name: Syntax check
+        shell: pwsh
+        run: |
+          python -m py_compile native/scancode_core.py
+          python -m py_compile native/scancode_app.py
+          python -m py_compile native/scancode_app_v44.py
+          python -m py_compile native/scancode_app_v45.py
+          python -m py_compile native/scancode_enhanced_v46.py
+          python -m py_compile native/scancode_app_v46.py
+          python -m py_compile native/scancode_v5_services.py
+          python -m py_compile native/scancode_scanner_v50.py
+          python -m py_compile native/scancode_app_v50.py
+          python -m py_compile native/scancode_app_v50_runtime.py
+          python -m py_compile native/scancode_app_v50_final.py
+          python -m py_compile native/test_v5_warehouse_suite.py
+
+      - name: Native core regression test
+        shell: pwsh
+        run: |
+          Push-Location native
+          python test_native_core.py
+          Pop-Location
+
+      - name: UI layout regression test
+        shell: pwsh
+        run: |
+          Push-Location native
+          python test_ui_layout.py
+          Pop-Location
+
+      - name: Warehouse workflow regression test
+        shell: pwsh
+        run: |
+          Push-Location native
+          python test_workflow_v42.py
+          Pop-Location
+
+      - name: Camera startup regression test
+        shell: pwsh
+        run: |
+          Push-Location native
+          python test_camera_startup_v43.py
+          Pop-Location
+
+      - name: Active App output regression test
+        shell: pwsh
+        run: |
+          Push-Location native
+          python test_active_app_runtime_v44.py
+          Pop-Location
+
+      - name: Fixed-focus 1080p regression test
+        shell: pwsh
+        run: |
+          Push-Location native
+          python test_fixed_focus_v45.py
+          Pop-Location
+
+      - name: Performance, barcode and focus controls regression test
+        shell: pwsh
+        run: |
+          Push-Location native
+          python test_performance_focus_v46.py
+          Pop-Location
+
+      - name: V5 30-feature warehouse suite test
+        shell: pwsh
+        run: |
+          Push-Location native
+          python test_v5_warehouse_suite.py
+          Pop-Location
+
+      - name: Build portable native EXE
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed `
+            --name ScanCode `
+            --collect-all zxingcpp `
+            --collect-all cv2 `
+            --hidden-import PIL._tkinter_finder `
+            --hidden-import sqlite3 `
+            --distpath dist `
+            --workpath build-native `
+            --specpath build-native `
+            native/scancode_app_v50_final.py
+          if (-not (Test-Path dist/ScanCode.exe)) { throw 'Native ScanCode.exe was not generated.' }
+
+      - name: Install Inno Setup if needed
+        shell: pwsh
+        run: |
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup compiler unavailable.' }
+
+      - name: Create Windows installer
+        shell: pwsh
+        run: |
+          @'
+          [Setup]
+          AppId={{A614B34B-7133-4B78-B0EC-50E0FA642D04}
+          AppName=ScanCode
+          AppVersion=5.0.0
+          AppPublisher=John Mark Bataller
+          VersionInfoCompany=John Mark Bataller
+          VersionInfoDescription=ScanCode Warehouse Packing Evidence and BigSeller Workstation
+          VersionInfoVersion=5.0.0.0
+          DefaultDirName={autopf}\ScanCode
+          DefaultGroupName=ScanCode
+          OutputDir=dist
+          OutputBaseFilename=ScanCode-Setup-5.0.0-x64
+          Compression=lzma2/ultra64
+          SolidCompression=yes
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          PrivilegesRequired=admin
+          UninstallDisplayName=ScanCode — John Mark Bataller
+          WizardStyle=modern
+
+          [Files]
+          Source: "dist\ScanCode.exe"; DestDir: "{app}"; Flags: ignoreversion
+
+          [Icons]
+          Name: "{autoprograms}\ScanCode"; Filename: "{app}\ScanCode.exe"
+          Name: "{autodesktop}\ScanCode"; Filename: "{app}\ScanCode.exe"
+
+          [Run]
+          Filename: "{app}\ScanCode.exe"; Description: "Launch ScanCode v5"; Flags: nowait postinstall skipifsilent
+          '@ | Set-Content scancode-v5.0.iss
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' scancode-v5.0.iss
+          if (-not (Test-Path dist/ScanCode-Setup-5.0.0-x64.exe)) { throw 'Setup EXE was not generated.' }
+
+      - name: Publish v5.0.0 release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $targetSha = (git rev-parse HEAD).Trim()
+          $notes = @'
+          ScanCode v5.0 turns the scanner into a warehouse packing evidence + BigSeller workstation. It retains v4.6 QR + 1D/2D barcode support, 1080p fixed-focus optimization, Active App output, optional autofocus, Near/Far focus and camera recovery.
+
+          V5 adds the complete 30-feature warehouse suite: automatic packing sessions; BigSeller confirmation states; duplicate blocking; best waybill photo; Smart Scan Zone; courier detection; packing quality checklist; minimum video duration; compressed pre-record buffer; exception workflow; operator/station tracking; searchable Evidence Center; one-click playback; daily dashboard; live packing rate; failed BigSeller queue; retry; paste/submit verification; wrong-window protection; multi-barcode intelligence; tracking validation; audio and optional voice feedback; retained-evidence storage cleanup; SHA-256 evidence integrity; crash recovery; camera reconnect; camera health; parcel timeline; and supervisor controls.
+
+          BigSeller verification uses Windows UI Automation and visible BigSeller success/error state. If no explicit confirmation is exposed by BigSeller, ScanCode records PENDING_VERIFY rather than falsely claiming verified success.
+          '@
+          if (gh release view v5.0.0 --repo $env:GITHUB_REPOSITORY 2>$null) {
+            gh release upload v5.0.0 dist/ScanCode-Setup-5.0.0-x64.exe dist/ScanCode.exe --clobber --repo $env:GITHUB_REPOSITORY
+          } else {
+            gh release create v5.0.0 dist/ScanCode-Setup-5.0.0-x64.exe dist/ScanCode.exe `
+              --repo $env:GITHUB_REPOSITORY `
+              --target $targetSha `
+              --title 'ScanCode v5.0.0 — Warehouse Packing Suite' `
+              --notes $notes
+          }
+
+      - name: Record success
+        shell: pwsh
+        run: |
+          "ScanCode v5.0.0 BUILD SUCCESS`nLegacy native core: PASS`nUI layout: PASS`nWarehouse workflow: PASS`nCamera startup: PASS`nActive App output: PASS`nFixed-focus 1080p: PASS`nQR + Barcode: PASS`nFocus controls: PASS`nV5 30-feature suite: PASS`nEvidence DB/Timeline: PASS`nBigSeller queue: PASS`nIntegrity: PASS`nSmart scanner: PASS`nInstaller: ScanCode-Setup-5.0.0-x64.exe`nBuilt: $(Get-Date -Format o)" | Set-Content NATIVE_V5_SUCCESS.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin "${{ github.ref_name }}"
+          git add NATIVE_V5_SUCCESS.txt
+          git commit -m "Record ScanCode v5.0.0 warehouse suite release"
+          git push origin "HEAD:${{ github.ref_name }}"
