@@ -103,8 +103,6 @@ def main():
         queue.update("JT123456789PH", "VERIFIED", increment_attempt=True)
         assert queue.count() == 0
 
-        # Critical safety rule: an ambiguous submission is NOT retryable. It may
-        # already have been accepted by BigSeller and must remain manual-review.
         queue.enqueue("SPXPH987654321", "SPX")
         queue.update("SPXPH987654321", "PENDING_VERIFY")
         assert queue.count() == 0, queue.pending()
@@ -120,6 +118,24 @@ def main():
         result2 = verify_integrity(video, waybill, result["video"], result["waybill"])
         assert result2["ok"] is False
 
+        # One-time upgrade migration: old v4 Active App becomes BigSeller once.
+        app = finalmod.ScanCodeApp.__new__(finalmod.ScanCodeApp)
+        app.settings_path = root / "settings.json"
+        app.settings_path.write_text(json.dumps({"scan_target": "Active App", "waybill_focus_mode": "Near"}), encoding="utf-8")
+        migrated = app.load_settings()
+        assert migrated["scan_target"] == "BigSeller"
+        assert migrated["v5_bigseller_target_migrated"] is True
+
+        # Once the v5 marker exists, an explicit user choice is preserved.
+        app.settings_path.write_text(json.dumps({
+            "scan_target": "Active App",
+            "waybill_focus_mode": "Auto",
+            "v5_bigseller_target_migrated": True,
+        }), encoding="utf-8")
+        respected = app.load_settings()
+        assert respected["scan_target"] == "Active App"
+        assert respected["waybill_focus_mode"] == "Auto"
+
     defaults = finalmod.ScanCodeApp.__new__(finalmod.ScanCodeApp).defaults()
     assert defaults["scan_target"] == "BigSeller"
     assert defaults["barcode_filter"] == "QR + Barcode"
@@ -132,7 +148,7 @@ def main():
     assert defaults["retention_days"] == 14
     assert defaults["waybill_focus_mode"] == "Auto"
 
-    print("SCANCODE V5 PASS: 30 features, smart scanner, evidence DB, retry safety and integrity verified.")
+    print("SCANCODE V5 PASS: 30 features, smart scanner, retry safety, migration and integrity verified.")
 
 
 if __name__ == "__main__":
