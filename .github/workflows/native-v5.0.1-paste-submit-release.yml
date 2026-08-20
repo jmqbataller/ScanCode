@@ -1,0 +1,157 @@
+name: ScanCode v5.0.1 Paste Submit Fix
+
+on:
+  push:
+    paths:
+      - 'release-trigger-native-v5.0.1.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scancode-v501-production-release
+  cancel-in-progress: true
+
+jobs:
+  test-build-release:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install native dependencies
+        shell: pwsh
+        run: python -m pip install --upgrade pip && pip install -r native/requirements.txt
+
+      - name: Syntax check
+        shell: pwsh
+        run: |
+          python -m py_compile native/scancode_core.py
+          python -m py_compile native/scancode_app.py
+          python -m py_compile native/scancode_app_v44.py
+          python -m py_compile native/scancode_app_v45.py
+          python -m py_compile native/scancode_enhanced_v46.py
+          python -m py_compile native/scancode_app_v46.py
+          python -m py_compile native/scancode_v5_services.py
+          python -m py_compile native/scancode_scanner_v50.py
+          python -m py_compile native/scancode_app_v50.py
+          python -m py_compile native/scancode_app_v50_runtime.py
+          python -m py_compile native/scancode_app_v50_final.py
+          python -m py_compile native/scancode_app_v501.py
+          python -m py_compile native/test_v5_warehouse_suite.py
+          python -m py_compile native/test_scan_paste_submit_v501.py
+
+      - name: Legacy and v5 regression tests
+        shell: pwsh
+        run: |
+          Push-Location native
+          python test_native_core.py
+          python test_ui_layout.py
+          python test_workflow_v42.py
+          python test_camera_startup_v43.py
+          python test_active_app_runtime_v44.py
+          python test_fixed_focus_v45.py
+          python test_performance_focus_v46.py
+          python test_v5_warehouse_suite.py
+          python test_scan_paste_submit_v501.py
+          Pop-Location
+
+      - name: Build portable native EXE
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed `
+            --name ScanCode `
+            --collect-all zxingcpp `
+            --collect-all cv2 `
+            --hidden-import PIL._tkinter_finder `
+            --hidden-import sqlite3 `
+            --distpath dist `
+            --workpath build-native `
+            --specpath build-native `
+            native/scancode_app_v501.py
+          if (-not (Test-Path dist/ScanCode.exe)) { throw 'Native ScanCode.exe was not generated.' }
+
+      - name: Install Inno Setup if needed
+        shell: pwsh
+        run: |
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup compiler unavailable.' }
+
+      - name: Create Windows installer
+        shell: pwsh
+        run: |
+          @'
+          [Setup]
+          AppId={{A614B34B-7133-4B78-B0EC-50E0FA642D04}
+          AppName=ScanCode
+          AppVersion=5.0.1
+          AppPublisher=John Mark Bataller
+          VersionInfoCompany=John Mark Bataller
+          VersionInfoDescription=ScanCode Warehouse Packing Evidence and BigSeller Workstation
+          VersionInfoVersion=5.0.1.0
+          DefaultDirName={autopf}\ScanCode
+          DefaultGroupName=ScanCode
+          OutputDir=dist
+          OutputBaseFilename=ScanCode-Setup-5.0.1-x64
+          Compression=lzma2/ultra64
+          SolidCompression=yes
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          PrivilegesRequired=admin
+          UninstallDisplayName=ScanCode — John Mark Bataller
+          WizardStyle=modern
+
+          [Files]
+          Source: "dist\ScanCode.exe"; DestDir: "{app}"; Flags: ignoreversion
+
+          [Icons]
+          Name: "{autoprograms}\ScanCode"; Filename: "{app}\ScanCode.exe"
+          Name: "{autodesktop}\ScanCode"; Filename: "{app}\ScanCode.exe"
+
+          [Run]
+          Filename: "{app}\ScanCode.exe"; Description: "Launch ScanCode v5.0.1"; Flags: nowait postinstall skipifsilent
+          '@ | Set-Content scancode-v5.0.1.iss
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' scancode-v5.0.1.iss
+          if (-not (Test-Path dist/ScanCode-Setup-5.0.1-x64.exe)) { throw 'Setup EXE was not generated.' }
+
+      - name: Publish v5.0.1 release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $targetSha = (git rev-parse HEAD).Trim()
+          $notes = @'
+          ScanCode v5.0.1 restores the core hardware-scanner-style behavior that must always remain available: QR/barcode decode -> normalized text -> clipboard -> focused BigSeller field -> automatic paste -> Enter/submit. BigSeller UI Automation remains available, but if the input is not exposed and BigSeller is foreground, ScanCode now falls back to keyboard-emulation paste/submit instead of losing the scan-to-text workflow.
+
+          All v5 warehouse features remain included: packing video evidence, Smart Scan Zone, QR + 1D/2D barcode support, Auto/Near/Far focus, duplicate protection, best waybill image, Evidence Center, timeline, BigSeller queue safety, integrity checks, retention, dashboard and supervisor controls.
+          '@
+          if (gh release view v5.0.1 --repo $env:GITHUB_REPOSITORY 2>$null) {
+            gh release upload v5.0.1 dist/ScanCode-Setup-5.0.1-x64.exe dist/ScanCode.exe --clobber --repo $env:GITHUB_REPOSITORY
+          } else {
+            gh release create v5.0.1 dist/ScanCode-Setup-5.0.1-x64.exe dist/ScanCode.exe `
+              --repo $env:GITHUB_REPOSITORY `
+              --target $targetSha `
+              --title 'ScanCode v5.0.1 — Automatic Paste + Submit Restored' `
+              --notes $notes
+          }
+
+      - name: Record success
+        shell: pwsh
+        run: |
+          "ScanCode v5.0.1 BUILD SUCCESS`nV5 warehouse suite: PASS`nQR + Barcode: PASS`nActive App output: PASS`nAutomatic BigSeller paste + submit: PASS`nForeground fallback: PASS`nBigSeller retry safety: PASS`nInstaller: ScanCode-Setup-5.0.1-x64.exe`nBuilt: $(Get-Date -Format o)" | Set-Content NATIVE_V5_0_1_SUCCESS.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin "${{ github.ref_name }}"
+          git add NATIVE_V5_0_1_SUCCESS.txt
+          git commit -m "Record ScanCode v5.0.1 paste submit release"
+          git push origin "HEAD:${{ github.ref_name }}"
