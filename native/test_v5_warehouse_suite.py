@@ -30,8 +30,6 @@ def main():
     assert len(manifest["features"]) == 30
     assert all(f["status"] in {"implemented", "retained"} for f in manifest["features"])
 
-    # Courier + tracking intelligence must prefer a plausible shipping waybill
-    # over a short SKU/order-style barcode when both are visible.
     candidates = [
         ("12345678", "EAN8"),
         ("SPXPH1234567890", "Code128"),
@@ -45,8 +43,6 @@ def main():
     assert validate_tracking("ABC")[0] is False
     assert normalize_code(" spx 123 ") == "SPX123"
 
-    # Smart Scan Zone and Auto Near/Far must still pass both 1D barcode and QR
-    # results through to the app. Patch only the decoder dependency.
     settings = {
         "smart_scan_zone": True,
         "scan_zone_ratio": 0.70,
@@ -70,7 +66,6 @@ def main():
     finally:
         scanmod.read_codes_optimized = original
 
-    # Best-waybill selector should prefer the sharper frame.
     soft = np.full((200, 300, 3), 180, dtype=np.uint8)
     sharp = soft.copy()
     cv2.rectangle(sharp, (40, 40), (260, 160), (0, 0, 0), 4)
@@ -108,6 +103,12 @@ def main():
         queue.update("JT123456789PH", "VERIFIED", increment_attempt=True)
         assert queue.count() == 0
 
+        # Critical safety rule: an ambiguous submission is NOT retryable. It may
+        # already have been accepted by BigSeller and must remain manual-review.
+        queue.enqueue("SPXPH987654321", "SPX")
+        queue.update("SPXPH987654321", "PENDING_VERIFY")
+        assert queue.count() == 0, queue.pending()
+
         video = root / "video.bin"
         waybill = root / "waybill.bin"
         video.write_bytes(b"video-evidence")
@@ -131,7 +132,7 @@ def main():
     assert defaults["retention_days"] == 14
     assert defaults["waybill_focus_mode"] == "Auto"
 
-    print("SCANCODE V5 PASS: 30-feature manifest, smart scanner, tracking intelligence, evidence DB, BigSeller queue and integrity verified.")
+    print("SCANCODE V5 PASS: 30 features, smart scanner, evidence DB, retry safety and integrity verified.")
 
 
 if __name__ == "__main__":
