@@ -1,0 +1,20 @@
+ScanCode v5 CI DIAGNOSTIC
+Branch: fix/v5-ci-diagnostic
+SHA: df611306bc68773676659d09bc1408090b76bcf7
+Started: 2026-08-20T08:46:26.5250466+00:00
+
+=== DEPENDENCIES ===
+Requirement already satisfied: pip in C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\site-packages (26.2.1)
+PIP_UPGRADE_EXIT=0
+Collecting opencv-python<5,>=4.10 (from -r native/requirements.txt (line 1))
+  Downloading opencv_python-4.14.0.94-cp37-abi3-win_amd64.whl.metadata (20 kB)
+Collecting Pillow<13,>=10 (from -r native/requirements.txt (line 2))
+  Downloading pillow-12.3.0-cp312-cp312-win_amd64.whl.metadata (9.3 kB)
+Collecting zxing-cpp==3.1.1 (from -r native/requirements.txt (line 3))
+  Downloading zxing_cpp-3.1.1-cp312-abi3-win_amd64.whl.metadata (2.3 kB)
+Collecting pywinauto==0.6.9 (from -r native/requirements.txt (line 4))
+  Downloading pywinauto-0.6.9-py2.py3-none-any.whl.metadata (2.0 kB)
+Collecting pyperclip==1.9.0 (from -r native/requirements.txt (line 5))
+  Downloading pyperclip-1.9.0.tar.gz (20 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'canceled'
