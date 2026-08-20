@@ -1,0 +1,7 @@
+ScanCode v4.3.0 BUILD SUCCESS
+Native core: PASS
+UI test: PASS
+Warehouse workflow: PASS
+Camera auto-detection: PASS
+Installer: ScanCode-Setup-4.3.0-x64.exe
+Built: 2026-08-20T07:14:15.8787674+00:00
