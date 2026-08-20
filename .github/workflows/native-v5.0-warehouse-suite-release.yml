@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: scancode-v5-production-release
+  cancel-in-progress: true
+
 jobs:
   test-build-release:
     runs-on: windows-latest
@@ -170,7 +174,7 @@ jobs:
 
           V5 adds the complete 30-feature warehouse suite: automatic packing sessions; BigSeller confirmation states; duplicate blocking; best waybill photo; Smart Scan Zone; courier detection; packing quality checklist; minimum video duration; compressed pre-record buffer; exception workflow; operator/station tracking; searchable Evidence Center; one-click playback; daily dashboard; live packing rate; failed BigSeller queue; retry; paste/submit verification; wrong-window protection; multi-barcode intelligence; tracking validation; audio and optional voice feedback; retained-evidence storage cleanup; SHA-256 evidence integrity; crash recovery; camera reconnect; camera health; parcel timeline; and supervisor controls.
 
-          BigSeller verification uses Windows UI Automation and visible BigSeller success/error state. If no explicit confirmation is exposed by BigSeller, ScanCode records PENDING_VERIFY rather than falsely claiming verified success.
+          BigSeller verification uses Windows UI Automation and visible BigSeller success/error state. If no explicit confirmation is exposed by BigSeller, ScanCode records PENDING_VERIFY rather than falsely claiming verified success. PENDING_VERIFY parcels are not automatically retried.
           '@
           if (gh release view v5.0.0 --repo $env:GITHUB_REPOSITORY 2>$null) {
             gh release upload v5.0.0 dist/ScanCode-Setup-5.0.0-x64.exe dist/ScanCode.exe --clobber --repo $env:GITHUB_REPOSITORY
@@ -185,7 +189,7 @@ jobs:
       - name: Record success
         shell: pwsh
         run: |
-          "ScanCode v5.0.0 BUILD SUCCESS`nLegacy native core: PASS`nUI layout: PASS`nWarehouse workflow: PASS`nCamera startup: PASS`nActive App output: PASS`nFixed-focus 1080p: PASS`nQR + Barcode: PASS`nFocus controls: PASS`nV5 30-feature suite: PASS`nEvidence DB/Timeline: PASS`nBigSeller queue: PASS`nIntegrity: PASS`nSmart scanner: PASS`nInstaller: ScanCode-Setup-5.0.0-x64.exe`nBuilt: $(Get-Date -Format o)" | Set-Content NATIVE_V5_SUCCESS.txt
+          "ScanCode v5.0.0 BUILD SUCCESS`nLegacy native core: PASS`nUI layout: PASS`nWarehouse workflow: PASS`nCamera startup: PASS`nActive App output: PASS`nFixed-focus 1080p: PASS`nQR + Barcode: PASS`nFocus controls: PASS`nV5 30-feature suite: PASS`nEvidence DB/Timeline: PASS`nBigSeller queue/retry safety: PASS`nBigSeller migration: PASS`nIntegrity: PASS`nSmart scanner: PASS`nInstaller: ScanCode-Setup-5.0.0-x64.exe`nBuilt: $(Get-Date -Format o)" | Set-Content NATIVE_V5_SUCCESS.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git pull --rebase origin "${{ github.ref_name }}"
