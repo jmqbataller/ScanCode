@@ -40,7 +40,7 @@ from scancode_core import (
     zoom_crop,
 )
 
-APP_VERSION = "4.3.0"
+APP_VERSION = "4.4.0"
 APP_NAME = "ScanCode"
 RED = "#d51f2a"
 DARK_RED = "#8f151c"
@@ -145,7 +145,8 @@ class ScanCodeApp:
             "auto_start": False,
             "bigseller_url": "",
             "bigseller_auto": True,
-            "scan_target": "Notepad Test",
+            "scan_target": "Active App",
+            "active_app_enter": True,
         }
 
     def load_settings(self):
@@ -176,7 +177,8 @@ class ScanCodeApp:
             "auto_start": bool(self.auto_start_var.get()),
             "bigseller_url": self.bigseller_var.get().strip(),
             "bigseller_auto": bool(self.bigseller_auto_var.get()),
-            "scan_target": self.target_var.get() or "Notepad Test",
+            "scan_target": self.target_var.get() or "Active App",
+            "active_app_enter": bool(self.active_app_enter_var.get()),
         })
         try:
             self.settings_path.write_text(json.dumps(self.settings, indent=2), encoding="utf-8")
@@ -382,11 +384,13 @@ class ScanCodeApp:
         self.check(settings, "Auto-start with Windows", self.auto_start_var)
 
         self.confirm_var = tk.StringVar(); self.filter_var = tk.StringVar(); self.overlap_var = tk.StringVar(value="0")
-        self.target_var = tk.StringVar()
+        self.target_var = tk.StringVar(); self.active_app_enter_var = tk.BooleanVar(value=True)
         self.combo_row(settings, "Scan confirmation", self.confirm_var, ["1","2","3"])
         self.combo_row(settings, "Barcode filter", self.filter_var, ["shipping","qr","all"])
-        self.combo_row(settings, "Scan output target", self.target_var, ["Notepad Test","BigSeller"])
-        tk.Label(settings, text="Next accepted scan instantly closes the previous parcel video and starts the new parcel.", bg=PANEL, fg=MUTED, font=("Segoe UI",8), wraplength=285, justify="left").pack(anchor="w", padx=14, pady=(4,6))
+        self.combo_row(settings, "Scan output target", self.target_var, ["Active App","BigSeller"])
+        self.check(settings, "Press Enter after paste", self.active_app_enter_var)
+        tk.Label(settings, text="Active App: focus any text box, cell, browser field, or desktop app. Accepted QR/barcode scans paste there automatically.", bg=PANEL, fg=MUTED, font=("Segoe UI",8), wraplength=285, justify="left").pack(anchor="w", padx=14, pady=(4,4))
+        tk.Label(settings, text="Next accepted scan instantly closes the previous parcel video and starts the new parcel.", bg=PANEL, fg=MUTED, font=("Segoe UI",8), wraplength=285, justify="left").pack(anchor="w", padx=14, pady=(0,6))
 
         self.far_zoom_var = tk.DoubleVar(); self.scanner_zoom_var = tk.DoubleVar()
         self.scale_row(settings, "FAR / Recording Zoom", self.far_zoom_var, 1.0, 1.75)
@@ -407,9 +411,9 @@ class ScanCodeApp:
         self.label(big, "BIGSELLER BRIDGE", 8, True, MUTED).pack(anchor="w", padx=14, pady=(12,4))
         self.bigseller_var = tk.StringVar(); self.bigseller_auto_var = tk.BooleanVar()
         self.entry_row(big, "Page URL", self.bigseller_var)
-        tk.Label(big, text="Choose BigSeller in Scan output target for production. Use Notepad Test while validating scans.", bg=PANEL, fg=MUTED, font=("Segoe UI",8), wraplength=285, justify="left").pack(anchor="w", padx=14, pady=(4,6))
+        tk.Label(big, text="Use Active App for any focused Windows input. Choose BigSeller only when you want the dedicated BigSeller UI Automation bridge.", bg=PANEL, fg=MUTED, font=("Segoe UI",8), wraplength=285, justify="left").pack(anchor="w", padx=14, pady=(4,6))
         self.button(big, "Open BigSeller", self.open_bigseller).pack(fill="x", padx=14, pady=(4,6))
-        self.bigseller_status = self.label(big, "Scan output: Notepad Test", 8, False, MUTED); self.bigseller_status.pack(anchor="w", padx=14, pady=(0,10))
+        self.bigseller_status = self.label(big, "Scan output: Active App", 8, False, MUTED); self.bigseller_status.pack(anchor="w", padx=14, pady=(0,10))
 
         self.button(self.side, "End-of-shift verification", self.end_shift, True).pack(fill="x")
 
@@ -464,7 +468,10 @@ class ScanCodeApp:
         s=self.settings
         self.station_var.set(s["station"]);self.operator_var.set(s["operator"]);self.camera_var.set(str(s["camera_index"]));self.network_var.set(s["network_url"]);self.mode_var.set(s["camera_mode"])
         self.far_zoom_var.set(s["far_zoom"]);self.scanner_zoom_var.set(s["scanner_zoom"]);self.confirm_var.set(str(s["scan_confirmations"]));self.filter_var.set(s["barcode_filter"]);self.overlap_var.set(str(s["overlap_ms"]))
-        self.sound_var.set(s["sound"]);self.quality_var.set(s["quality"]);self.server_var.set(s["server_folder"]);self.auto_sync_var.set(s["auto_sync"]);self.auto_start_var.set(s["auto_start"]);self.bigseller_var.set(s["bigseller_url"]);self.bigseller_auto_var.set(s["bigseller_auto"]);self.target_var.set(s.get("scan_target","Notepad Test"));self.overlap_var.set("0")
+        self.sound_var.set(s["sound"]);self.quality_var.set(s["quality"]);self.server_var.set(s["server_folder"]);self.auto_sync_var.set(s["auto_sync"]);self.auto_start_var.set(s["auto_start"]);self.bigseller_var.set(s["bigseller_url"]);self.bigseller_auto_var.set(s["bigseller_auto"])
+        target=s.get("scan_target","Active App")
+        if target=="Notepad Test":target="Active App"
+        self.target_var.set(target);self.active_app_enter_var.set(bool(s.get("active_app_enter",True)));self.overlap_var.set("0")
 
     def camera_source_changed(self):
         self.save_settings(); self.restart_camera()
@@ -916,37 +923,66 @@ class ScanCodeApp:
         if matches and os.name=="nt":os.startfile(str(matches[0]))
 
     def submit_scan_target(self, code):
-        target = self.target_var.get() or "Notepad Test"
+        # This runs on a worker thread after an accepted QR/barcode scan. Read
+        # plain settings instead of tkinter variables so scan output is thread-safe.
+        target = str(self.settings.get("scan_target") or "Active App")
+        if target == "Notepad Test":
+            target = "Active App"
         if target == "BigSeller":
             return self.submit_bigseller(code)
-        return self.submit_notepad(code)
+        return self.submit_active_app(code)
 
-    def submit_notepad(self, code):
-        pyperclip.copy(code)
-        if Desktop is None or send_keys is None:
-            return self.events.put(("bigseller", f"TEST: copied {code}; UI Automation unavailable."))
+    def _foreground_window_info(self):
+        if os.name != "nt":
+            return None
         try:
-            def find_notepad():
-                return [w for w in Desktop(backend="uia").windows()
-                        if "notepad" in (w.window_text() or "").lower() and w.is_visible()]
+            import ctypes
+            user32 = ctypes.windll.user32
+            hwnd = user32.GetForegroundWindow()
+            if not hwnd:
+                return None
+            pid = ctypes.c_ulong(0)
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            length = int(user32.GetWindowTextLengthW(hwnd))
+            title_buf = ctypes.create_unicode_buffer(max(1, length + 1))
+            user32.GetWindowTextW(hwnd, title_buf, len(title_buf))
+            return {"hwnd": int(hwnd), "pid": int(pid.value), "title": title_buf.value.strip()}
+        except Exception:
+            return None
 
-            wins = find_notepad()
-            if not wins:
-                subprocess.Popen(["notepad.exe"])
-                deadline = time.time() + 4.0
-                while time.time() < deadline and not wins:
-                    time.sleep(.2)
-                    wins = find_notepad()
-            if not wins:
-                return self.events.put(("bigseller", f"TEST: copied {code}; could not open Notepad."))
+    def submit_active_app(self, code):
+        clean = str(code or "").strip()
+        if not clean:
+            return
 
-            win = wins[0]
-            win.set_focus()
-            time.sleep(.08)
-            send_keys("^v{ENTER}", pause=.03)
-            self.events.put(("bigseller", f"TEST OK: pasted {code} to Notepad."))
+        # Clipboard paste is more reliable than typing barcode characters one by
+        # one and works with Notepad, Excel, browsers, ERP/WMS fields, etc.
+        pyperclip.copy(clean)
+
+        if os.name != "nt" or send_keys is None:
+            return self.events.put(("bigseller", f"Copied {clean}. Focus the target app and paste manually."))
+
+        try:
+            target = self._foreground_window_info()
+            if not target:
+                return self.events.put(("bigseller", f"Copied {clean}; no active Windows target was detected."))
+
+            # Never paste into ScanCode itself. Keep ScanCode in the background
+            # and focus the textbox/cell/input in the app that should receive scans.
+            if int(target.get("pid") or 0) == os.getpid():
+                return self.events.put(("bigseller", f"Copied {clean}; focus another app/input before scanning."))
+
+            keys = "^v{ENTER}" if bool(self.settings.get("active_app_enter", True)) else "^v"
+            send_keys(keys, pause=.02)
+            title = target.get("title") or "active app"
+            suffix = " + Enter" if bool(self.settings.get("active_app_enter", True)) else ""
+            self.events.put(("bigseller", f"Pasted {clean} → {title}{suffix}."))
         except Exception as exc:
-            self.events.put(("bigseller", f"TEST: copied {code}; Notepad paste failed: {exc}"))
+            self.events.put(("bigseller", f"Copied {clean}; active-app paste failed: {exc}"))
+
+    # Backward-compatible alias for old v4.2/v4.3 settings or integrations.
+    def submit_notepad(self, code):
+        return self.submit_active_app(code)
 
     def open_bigseller(self):
         url=self.bigseller_var.get().strip()
