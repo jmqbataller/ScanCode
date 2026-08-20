@@ -5,3 +5,4 @@ Main release verification run.
 Retry-safe PENDING_VERIFY final build.
 One-time BigSeller production target migration included.
 Serialized definitive release run.
+SQLite Windows CI cleanup fix included.
