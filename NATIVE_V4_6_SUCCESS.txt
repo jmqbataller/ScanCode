@@ -1,0 +1,13 @@
+ScanCode v4.6.0 BUILD SUCCESS
+Native core: PASS
+UI layout: PASS
+Warehouse workflow: PASS
+Camera startup: PASS
+Active App output: PASS
+Fixed-focus v4.5: PASS
+QR + Barcode: PASS
+Near/Far focus: PASS
+Autofocus option: PASS
+Light decoder: PASS
+Installer: ScanCode-Setup-4.6.0-x64.exe
+Built: 2026-08-20T08:09:15.3351016+00:00
