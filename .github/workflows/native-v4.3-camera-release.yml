@@ -24,10 +24,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Apply v4.3 camera auto-start fix
-        shell: pwsh
-        run: python tools/apply-v4.3-camera-autostart.py
-
       - name: Install native dependencies
         shell: pwsh
         run: python -m pip install --upgrade pip && pip install -r native/requirements.txt
@@ -37,10 +33,11 @@ jobs:
         run: |
           python -m py_compile native/scancode_core.py
           python -m py_compile native/scancode_app.py
+          python -m py_compile native/scancode_app_v43.py
           python -m py_compile native/test_native_core.py
           python -m py_compile native/test_ui_layout.py
           python -m py_compile native/test_workflow_v42.py
-          python -m py_compile native/test_camera_startup_v43.py
+          python -m py_compile native/test_camera_runtime_v43.py
 
       - name: Native core regression test
         shell: pwsh
@@ -63,23 +60,12 @@ jobs:
           python test_workflow_v42.py
           Pop-Location
 
-      - name: Camera startup fallback test
+      - name: Camera auto-detection test
         shell: pwsh
         run: |
           Push-Location native
-          python test_camera_startup_v43.py
+          python test_camera_runtime_v43.py
           Pop-Location
-
-      - name: Commit verified v4.3 source
-        shell: pwsh
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add native/scancode_app.py
-          if (-not (git diff --cached --quiet)) {
-            git commit -m "Fix automatic Windows camera startup (v4.3.0)"
-            git push origin "HEAD:${{ github.ref_name }}"
-          }
 
       - name: Build portable native EXE
         shell: pwsh
@@ -92,7 +78,7 @@ jobs:
             --distpath dist `
             --workpath build-native `
             --specpath build-native `
-            native/scancode_app.py
+            native/scancode_app_v43.py
           if (-not (Test-Path dist/ScanCode.exe)) { throw 'Native ScanCode.exe was not generated.' }
 
       - name: Install Inno Setup if needed
@@ -152,13 +138,13 @@ jobs:
               --repo $env:GITHUB_REPOSITORY `
               --target $targetSha `
               --title 'ScanCode v4.3.0 — Automatic Camera Startup' `
-              --notes 'Camera startup reliability release. After installation the setup launches ScanCode, and ScanCode automatically starts the PC camera after the Windows/Tk UI is ready. The app first tries the saved camera, then automatically scans Camera 0–5 across DirectShow, Media Foundation, and Windows Auto backends. Camera settings used by the worker are now thread-safe, reducing frozen/failed camera startup in the packaged EXE. Existing Start/Pause/Stop parcel workflow remains unchanged.'
+              --notes 'Camera startup reliability release. The installer launches ScanCode after installation, then ScanCode automatically starts the webcam after the Windows/Tk UI is ready. It tries the saved camera first and automatically probes Camera 0–5 using DirectShow, Media Foundation, and Windows Auto. The camera worker no longer reads tkinter variables from a background thread. Existing Start/Pause/Stop parcel workflow remains unchanged.'
           }
 
       - name: Record success
         shell: pwsh
         run: |
-          "ScanCode v4.3.0 BUILD SUCCESS`nNative core: PASS`nUI test: PASS`nWarehouse workflow: PASS`nCamera fallback test: PASS`nInstaller: ScanCode-Setup-4.3.0-x64.exe`nBuilt: $(Get-Date -Format o)" | Set-Content NATIVE_V4_3_SUCCESS.txt
+          "ScanCode v4.3.0 BUILD SUCCESS`nNative core: PASS`nUI test: PASS`nWarehouse workflow: PASS`nCamera auto-detection: PASS`nInstaller: ScanCode-Setup-4.3.0-x64.exe`nBuilt: $(Get-Date -Format o)" | Set-Content NATIVE_V4_3_SUCCESS.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git pull --rebase origin "${{ github.ref_name }}"
