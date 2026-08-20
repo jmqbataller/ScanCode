@@ -1,0 +1,9 @@
+ScanCode v5.0.1 BUILD SUCCESS
+V5 warehouse suite: PASS
+QR + Barcode: PASS
+Active App output: PASS
+Automatic BigSeller paste + submit: PASS
+Foreground fallback: PASS
+BigSeller retry safety: PASS
+Installer: ScanCode-Setup-5.0.1-x64.exe
+Built: 2026-08-20T09:08:49.9498754+00:00
