@@ -53,9 +53,11 @@ def main():
     original = scanmod.read_codes_optimized
     try:
         calls = []
+
         def fake_reader(frame, filter_mode, zoom):
             calls.append((frame.shape[:2], filter_mode, zoom))
             return [("JT123456789PH", "Code128"), ("QR-PARCEL-001", "QRCode")]
+
         scanmod.read_codes_optimized = fake_reader
         frame = np.full((1080, 1920, 3), 220, dtype=np.uint8)
         found = scanner.read(frame, "QR + Barcode", 1.85)
@@ -73,7 +75,10 @@ def main():
     assert selected is not None
     assert float(cv2.Laplacian(cv2.cvtColor(selected, cv2.COLOR_BGR2GRAY), cv2.CV_64F).var()) > 0
 
-    with tempfile.TemporaryDirectory() as td:
+    # SQLite can keep a Windows file handle alive briefly after the final
+    # connection closes. ignore_cleanup_errors only prevents that transient
+    # test-directory cleanup from turning an otherwise passing suite red.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
         root = Path(td)
         db = EvidenceDB(root / "evidence.db")
         queue = SubmissionQueue(root / "queue.json")
