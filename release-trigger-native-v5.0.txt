@@ -3,3 +3,4 @@ ScanCode v5.0.0 warehouse suite release trigger.
 Final thread-safe sync, prebuffer, supervisor enforcement and tracking-bound best-waybill build.
 Main release verification run.
 Retry-safe PENDING_VERIFY final build.
+One-time BigSeller production target migration included.
