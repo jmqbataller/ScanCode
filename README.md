@@ -22,6 +22,7 @@ A portable `ScanCode.exe` is also included in the v4.3.0 release.
 - If that camera index does not work, ScanCode automatically probes Camera 0–5.
 - Each camera is tried through DirectShow, Media Foundation, and Windows Auto backends.
 - A camera is considered live only after a real video frame is received.
+- The detected working camera index is saved for the next launch.
 - The camera worker no longer reads tkinter variables from its background thread, reducing packaged-EXE startup failures.
 - Camera reconnect/retry remains active if the webcam temporarily fails.
 
@@ -82,14 +83,15 @@ The v4.3 Windows workflow validates:
 - Python syntax before packaging
 - successful creation of the portable EXE and Windows installer
 
+The clean v4.3 production build passed all checks and generated `ScanCode-Setup-4.3.0-x64.exe`.
+
 GitHub CI cannot access the physical warehouse webcam, so the final hardware check still needs to be performed on the target Windows PC.
 
 ## Source layout
 
-- `native/scancode_app.py` — stable v4.2 warehouse workflow/UI base
-- `native/scancode_app_v43.py` — v4.3 production entrypoint and camera runtime
+- `native/scancode_app.py` — v4.3 production Windows application and automatic camera runtime
 - `native/scancode_core.py` — barcode, recording, evidence and sync core
-- `native/test_camera_runtime_v43.py` — camera auto-detection regression test
+- `native/test_camera_startup_v43.py` — production camera auto-detection regression test
 - `native/test_workflow_v42.py` — parcel workflow regression test
 - `.github/workflows/native-v4.3-camera-release.yml` — v4.3 Windows test/build/release pipeline
 
