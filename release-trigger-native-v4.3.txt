@@ -1,4 +1,4 @@
 ScanCode v4.3.0 camera auto-start release trigger.
-Production entrypoint: native/scancode_app_v43.py
+Production entrypoint: native/scancode_app.py
 Safe Tk startup delay + automatic Camera 0-5 detection across DirectShow/MSMF/Windows Auto.
-Build trigger revision: 3 (final branch state)
+Build trigger revision: 4 (clean direct production build)
