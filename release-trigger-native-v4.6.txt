@@ -1,0 +1,2 @@
+ScanCode v4.6.0 performance + focus release trigger.
+Light decoder, QR + Barcode default, optional autofocus, Near/Far Waybill Focus.
