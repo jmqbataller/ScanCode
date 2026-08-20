@@ -1,0 +1,114 @@
+name: ScanCode v5 CI Diagnostic
+
+on:
+  push:
+    paths:
+      - 'diagnostic-trigger-v5.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scancode-v5-ci-diagnostic
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    runs-on: windows-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run diagnostic suite
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference = 'Continue'
+          "ScanCode v5 CI DIAGNOSTIC`nBranch: $env:GITHUB_REF_NAME`nSHA: $env:GITHUB_SHA`nStarted: $(Get-Date -Format o)`n" | Set-Content V5_DIAGNOSTIC.txt
+
+          "=== DEPENDENCIES ===" | Add-Content V5_DIAGNOSTIC.txt
+          python -m pip install --upgrade pip *>> V5_DIAGNOSTIC.txt
+          "PIP_UPGRADE_EXIT=$LASTEXITCODE" | Add-Content V5_DIAGNOSTIC.txt
+          pip install -r native/requirements.txt *>> V5_DIAGNOSTIC.txt
+          $deps = $LASTEXITCODE
+          "DEPENDENCIES_EXIT=$deps" | Add-Content V5_DIAGNOSTIC.txt
+
+          "`n=== SYNTAX ===" | Add-Content V5_DIAGNOSTIC.txt
+          $files = @(
+            'native/scancode_core.py',
+            'native/scancode_app.py',
+            'native/scancode_app_v44.py',
+            'native/scancode_app_v45.py',
+            'native/scancode_enhanced_v46.py',
+            'native/scancode_app_v46.py',
+            'native/scancode_v5_services.py',
+            'native/scancode_scanner_v50.py',
+            'native/scancode_app_v50.py',
+            'native/scancode_app_v50_runtime.py',
+            'native/scancode_app_v50_final.py',
+            'native/test_v5_warehouse_suite.py'
+          )
+          $syntaxFail = 0
+          foreach ($f in $files) {
+            python -m py_compile $f *>> V5_DIAGNOSTIC.txt
+            "COMPILE $f EXIT=$LASTEXITCODE" | Add-Content V5_DIAGNOSTIC.txt
+            if ($LASTEXITCODE -ne 0) { $syntaxFail = 1 }
+          }
+          "SYNTAX_EXIT=$syntaxFail" | Add-Content V5_DIAGNOSTIC.txt
+
+          "`n=== TESTS ===" | Add-Content V5_DIAGNOSTIC.txt
+          Push-Location native
+          $tests = @(
+            'test_native_core.py',
+            'test_ui_layout.py',
+            'test_workflow_v42.py',
+            'test_camera_startup_v43.py',
+            'test_active_app_runtime_v44.py',
+            'test_fixed_focus_v45.py',
+            'test_performance_focus_v46.py',
+            'test_v5_warehouse_suite.py'
+          )
+          foreach ($t in $tests) {
+            "--- $t ---" | Add-Content ../V5_DIAGNOSTIC.txt
+            python $t *>> ../V5_DIAGNOSTIC.txt
+            "$t EXIT=$LASTEXITCODE" | Add-Content ../V5_DIAGNOSTIC.txt
+          }
+          Pop-Location
+
+          "`n=== PYINSTALLER ===" | Add-Content V5_DIAGNOSTIC.txt
+          pyinstaller --noconfirm --clean --onefile --windowed `
+            --name ScanCode-Diagnostic `
+            --collect-all zxingcpp `
+            --collect-all cv2 `
+            --hidden-import PIL._tkinter_finder `
+            --hidden-import sqlite3 `
+            --distpath dist-diagnostic `
+            --workpath build-diagnostic `
+            --specpath build-diagnostic `
+            native/scancode_app_v50_final.py *>> V5_DIAGNOSTIC.txt
+          "PYINSTALLER_EXIT=$LASTEXITCODE" | Add-Content V5_DIAGNOSTIC.txt
+          "EXE_EXISTS=$(Test-Path dist-diagnostic/ScanCode-Diagnostic.exe)" | Add-Content V5_DIAGNOSTIC.txt
+          "Finished: $(Get-Date -Format o)" | Add-Content V5_DIAGNOSTIC.txt
+
+      - name: Commit diagnostic log
+        if: always()
+        shell: pwsh
+        run: |
+          if (-not (Test-Path V5_DIAGNOSTIC.txt)) {
+            "Diagnostic execution failed before log creation.`nFinished: $(Get-Date -Format o)" | Set-Content V5_DIAGNOSTIC.txt
+          }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin "${{ github.ref_name }}"
+          git add V5_DIAGNOSTIC.txt
+          git commit -m "Record ScanCode v5 CI diagnostic"
+          if ($LASTEXITCODE -ne 0) { Write-Host "No diagnostic changes to commit." }
+          git push origin "HEAD:${{ github.ref_name }}"
