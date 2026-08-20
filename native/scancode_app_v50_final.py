@@ -9,10 +9,33 @@ import cv2
 import scancode_app_v50_runtime as runtime
 from scancode_core import pending_bundles, waybill_crop
 from scancode_enhanced_v46 import read_codes_optimized
-from scancode_v5_services import best_frame, normalize_code
+from scancode_v5_services import SubmissionQueue, best_frame, normalize_code
 
 APP_VERSION = "5.0.0"
 runtime.APP_VERSION = APP_VERSION
+
+
+def _safe_retry_pending(self):
+    """Return only submissions that are safe to retry automatically.
+
+    PENDING_VERIFY is deliberately excluded: BigSeller may already have accepted
+    the parcel even when its UI exposed no explicit success state. Re-sending it
+    automatically could create duplicate processing. A stale SUBMITTING item is
+    recoverable after a crash and may be retried after 30 seconds.
+    """
+    now = time.time()
+    rows = []
+    for row in self._read():
+        status = str(row.get("status") or "QUEUED")
+        if status in {"QUEUED", "FAILED"}:
+            rows.append(row)
+        elif status == "SUBMITTING" and now - float(row.get("updated_at") or 0) >= 30:
+            rows.append(row)
+    return rows
+
+
+SubmissionQueue.pending = _safe_retry_pending
+SubmissionQueue.count = lambda self: len(self.pending())
 
 
 class ScanCodeApp(runtime.ScanCodeApp):
@@ -87,8 +110,6 @@ class ScanCodeApp(runtime.ScanCodeApp):
         wanted = normalize_code(code)
         zoom = float(self.settings.get("scanner_zoom", 1.35) or 1.35)
         candidates = []
-        # Only examine the last ~1.5 seconds of buffered history. A frame is
-        # eligible only when it independently decodes to this parcel's code.
         for frame in preframes[-12:]:
             try:
                 found = read_codes_optimized(frame, "QR + Barcode", zoom)
