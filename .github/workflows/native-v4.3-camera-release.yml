@@ -33,11 +33,10 @@ jobs:
         run: |
           python -m py_compile native/scancode_core.py
           python -m py_compile native/scancode_app.py
-          python -m py_compile native/scancode_app_v43.py
           python -m py_compile native/test_native_core.py
           python -m py_compile native/test_ui_layout.py
           python -m py_compile native/test_workflow_v42.py
-          python -m py_compile native/test_camera_runtime_v43.py
+          python -m py_compile native/test_camera_startup_v43.py
 
       - name: Native core regression test
         shell: pwsh
@@ -64,7 +63,7 @@ jobs:
         shell: pwsh
         run: |
           Push-Location native
-          python test_camera_runtime_v43.py
+          python test_camera_startup_v43.py
           Pop-Location
 
       - name: Build portable native EXE
@@ -78,7 +77,7 @@ jobs:
             --distpath dist `
             --workpath build-native `
             --specpath build-native `
-            native/scancode_app_v43.py
+            native/scancode_app.py
           if (-not (Test-Path dist/ScanCode.exe)) { throw 'Native ScanCode.exe was not generated.' }
 
       - name: Install Inno Setup if needed
