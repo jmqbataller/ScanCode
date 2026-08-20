@@ -4,4 +4,4 @@ UI test: PASS
 Warehouse workflow: PASS
 Camera auto-detection: PASS
 Installer: ScanCode-Setup-4.3.0-x64.exe
-Built: 2026-08-20T07:19:40.6981285+00:00
+Built: 2026-08-20T07:22:21.2409203+00:00
