@@ -1,0 +1,3 @@
+ScanCode v4.4.0 Active App release trigger.
+QR/barcode -> clipboard -> currently focused Windows app/input.
+Optional Enter after paste; BigSeller mode retained.
