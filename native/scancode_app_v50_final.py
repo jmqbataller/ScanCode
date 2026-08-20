@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 import tkinter as tk
 
 import cv2
 
 import scancode_app_v50_runtime as runtime
-from scancode_core import waybill_crop
+from scancode_core import pending_bundles, waybill_crop
 from scancode_v5_services import best_frame
 
 APP_VERSION = "5.0.0"
@@ -73,6 +74,58 @@ class ScanCodeApp(runtime.ScanCodeApp):
                 self.db.event(session.code, "PREBUFFER_INJECTED", f"{len(preframes)} compressed history frames")
                 self.db.event(session.code, "BEST_WAYBILL_SELECTED", "Sharpest buffered frame selected")
         return result
+
+    def _bundle_needs_sync(self, meta: Path):
+        if not hasattr(self, "db"):
+            return True
+        row = self.db.get(meta.stem)
+        return not row or row.get("sync_status") != "SYNCED"
+
+    def one_sync(self):
+        server = Path(self.server_var.get().strip()) if self.server_var.get().strip() else None
+        if not server or not server.exists():
+            return self.events.put(("sync", ("SERVER OFFLINE", "Server not reachable", len(pending_bundles(self.local_root)))))
+        copied = 0
+        pending = 0
+        for meta, video, waybill in pending_bundles(self.local_root):
+            if not self._bundle_needs_sync(meta):
+                continue
+            pending += 1
+            try:
+                self._copy_bundle_keep_local(meta, video, waybill, server)
+                copied += 1
+            except Exception as exc:
+                self.events.put(("error", str(exc)))
+                break
+        self.events.put(("sync", ("SERVER ONLINE", f"Verified {copied} new bundle(s); local retention enabled", max(0, pending - copied))))
+
+    def sync_worker(self):
+        while not self.sync_stop.is_set():
+            try:
+                bundles = pending_bundles(self.local_root)
+                server = Path(self.settings.get("server_folder") or "") if self.settings.get("server_folder") else None
+                unsynced = [(m, v, w) for m, v, w in bundles if self._bundle_needs_sync(m)]
+                if not server:
+                    self.events.put(("sync", ("SERVER NOT SET", "Configure server folder", len(unsynced))))
+                elif not server.exists():
+                    self.events.put(("sync", ("SERVER OFFLINE", "Files remain local", len(unsynced))))
+                elif not self.settings.get("auto_sync", True):
+                    self.events.put(("sync", ("SYNC OFF", "Auto Sync disabled", len(unsynced))))
+                else:
+                    remaining = len(unsynced)
+                    for meta, video, waybill in unsynced:
+                        if self.sync_stop.is_set():
+                            break
+                        try:
+                            self._copy_bundle_keep_local(meta, video, waybill, server)
+                            remaining -= 1
+                        except Exception as exc:
+                            self.events.put(("error", f"Sync failed: {exc}"))
+                            break
+                    self.events.put(("sync", ("SERVER ONLINE", "Verified copy retained locally", max(0, remaining))))
+            except Exception as exc:
+                self.events.put(("error", f"Server sync error: {exc}"))
+            self.sync_stop.wait(15)
 
 
 def main():
