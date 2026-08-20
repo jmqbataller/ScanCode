@@ -1,0 +1,2 @@
+ScanCode v5 CI diagnostic trigger.
+Capture dependency, syntax, regression-test and PyInstaller output.
