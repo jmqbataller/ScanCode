@@ -1,3 +1,4 @@
 ScanCode v5.0.0 warehouse suite release trigger.
 30-feature packing evidence + BigSeller workflow.
 Final thread-safe sync, prebuffer, supervisor enforcement and tracking-bound best-waybill build.
+Main release verification run.
