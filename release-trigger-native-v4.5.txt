@@ -1,0 +1,2 @@
+ScanCode v4.5.0 fixed-focus 1080p release trigger.
+A4Tech/fixed-focus profile: 1920x1080 MJPG + enhanced QR/barcode decoding.
