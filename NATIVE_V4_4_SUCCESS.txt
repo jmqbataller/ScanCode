@@ -1,0 +1,8 @@
+ScanCode v4.4.0 BUILD SUCCESS
+Native core: PASS
+UI layout: PASS
+Warehouse workflow: PASS
+Camera startup: PASS
+Active App output: PASS
+Installer: ScanCode-Setup-4.4.0-x64.exe
+Built: 2026-08-20T07:32:25.7577446+00:00
