@@ -1,0 +1,2 @@
+ScanCode v5.0.1 release trigger.
+Restore QR/barcode -> text -> automatic BigSeller paste -> Enter/submit.
