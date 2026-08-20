@@ -19,7 +19,54 @@ class ScanCodeApp(runtime.ScanCodeApp):
 
     def __init__(self, root: tk.Tk, start_services: bool = True):
         self._suppress_parent_prebuffer = False
+        self._protected_snapshot = None
         super().__init__(root, start_services=start_services)
+        self.supervisor_locked = bool(self.settings.get("supervisor_lock", False))
+        self._capture_protected_settings()
+
+    def _capture_protected_settings(self):
+        try:
+            self._protected_snapshot = {
+                "camera_mode": self.mode_var.get(),
+                "camera_index": self.camera_var.get(),
+                "network_url": self.network_var.get(),
+                "server_folder": self.server_var.get(),
+                "auto_sync": bool(self.auto_sync_var.get()),
+                "auto_start": bool(self.auto_start_var.get()),
+                "bigseller_url": self.bigseller_var.get(),
+                "retention_days": self.retention_var.get(),
+            }
+        except Exception:
+            self._protected_snapshot = None
+
+    def _restore_protected_settings(self):
+        p = self._protected_snapshot or {}
+        try:
+            self.mode_var.set(p.get("camera_mode", self.mode_var.get()))
+            self.camera_var.set(str(p.get("camera_index", self.camera_var.get())))
+            self.network_var.set(p.get("network_url", self.network_var.get()))
+            self.server_var.set(p.get("server_folder", self.server_var.get()))
+            self.auto_sync_var.set(bool(p.get("auto_sync", self.auto_sync_var.get())))
+            self.auto_start_var.set(bool(p.get("auto_start", self.auto_start_var.get())))
+            self.bigseller_var.set(p.get("bigseller_url", self.bigseller_var.get()))
+            self.retention_var.set(str(p.get("retention_days", self.retention_var.get())))
+        except Exception:
+            pass
+
+    def save_settings(self):
+        if self._protected_snapshot is not None and self.supervisor_locked:
+            self._restore_protected_settings()
+        result = super().save_settings()
+        if not self.supervisor_locked:
+            self._capture_protected_settings()
+        return result
+
+    def toggle_supervisor(self):
+        result = super().toggle_supervisor()
+        self.supervisor_locked = bool(self.settings.get("supervisor_lock", self.supervisor_locked))
+        if not self.supervisor_locked:
+            self._capture_protected_settings()
+        return result
 
     def _decode_buffer_frames(self):
         if self._suppress_parent_prebuffer:
